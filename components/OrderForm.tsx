@@ -1,0 +1,479 @@
+"use client";
+
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { OrderPayloadSchema, type OrderPayload } from "@/lib/schemas";
+import { normalizePhone, normalizeState, normalizeZip } from "@/lib/format";
+import { useState } from "react";
+import { LoadingSpinner } from "./ui/LoadingSpinner";
+
+interface OrderFormProps {
+  onSubmit: (data: OrderPayload) => Promise<void>;
+  isLoading: boolean;
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return <p className="form-error" role="alert">{message}</p>;
+}
+
+function AddressFields({
+  prefix,
+  register,
+  errors,
+  label,
+}: {
+  prefix: "billingAddress" | "shippingAddress";
+  register: ReturnType<typeof useForm<OrderPayload>>["register"];
+  errors: Record<string, unknown>;
+  label: string;
+}) {
+  const e = (errors[prefix] as Record<string, { message?: string }>) ?? {};
+  return (
+    <div>
+      <h3 className="section-header">{label}</h3>
+      <div className="grid grid-cols-1 gap-4">
+        <div>
+          <label className="form-label" htmlFor={`${prefix}.line1`}>
+            Street Address *
+          </label>
+          <input
+            id={`${prefix}.line1`}
+            className="form-input"
+            placeholder="123 Main St"
+            {...register(`${prefix}.line1`)}
+          />
+          <FieldError message={e.line1?.message} />
+        </div>
+        <div>
+          <label className="form-label" htmlFor={`${prefix}.line2`}>
+            Apt / Suite
+          </label>
+          <input
+            id={`${prefix}.line2`}
+            className="form-input"
+            placeholder="Apt 4B"
+            {...register(`${prefix}.line2`)}
+          />
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-1">
+            <label className="form-label" htmlFor={`${prefix}.city`}>
+              City *
+            </label>
+            <input
+              id={`${prefix}.city`}
+              className="form-input"
+              placeholder="Atlanta"
+              {...register(`${prefix}.city`)}
+            />
+            <FieldError message={e.city?.message} />
+          </div>
+          <div>
+            <label className="form-label" htmlFor={`${prefix}.state`}>
+              State *
+            </label>
+            <input
+              id={`${prefix}.state`}
+              className="form-input uppercase"
+              placeholder="GA"
+              maxLength={2}
+              {...register(`${prefix}.state`, {
+                setValueAs: (v) => normalizeState(v),
+              })}
+            />
+            <FieldError message={e.state?.message} />
+          </div>
+          <div>
+            <label className="form-label" htmlFor={`${prefix}.postalCode`}>
+              ZIP *
+            </label>
+            <input
+              id={`${prefix}.postalCode`}
+              className="form-input"
+              placeholder="30301"
+              maxLength={10}
+              {...register(`${prefix}.postalCode`, {
+                setValueAs: (v) => normalizeZip(v),
+              })}
+            />
+            <FieldError message={e.postalCode?.message} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
+  const [sameAddress, setSameAddress] = useState(true);
+  const [panWarning, setPanWarning] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    getValues,
+    setValue,
+    formState: { errors },
+  } = useForm<OrderPayload>({
+    resolver: zodResolver(OrderPayloadSchema),
+    defaultValues: {
+      items: [{ sku: "", name: "", qty: 1, price: 0 }],
+      paymentMeta: {},
+      context: {},
+      billingAddress: { country: "US" },
+      shippingAddress: { country: "US" },
+    },
+  });
+
+  const { fields, append, remove } = useFieldArray({ control, name: "items" });
+
+  const handleSameAddressToggle = (checked: boolean) => {
+    setSameAddress(checked);
+    if (checked) {
+      const billing = getValues("billingAddress");
+      setValue("shippingAddress", billing);
+    }
+  };
+
+  const handleCardLast4Change = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    // Detect potential full PAN entry
+    if (val.length > 4 || /\d{13,}/.test(val)) {
+      setPanWarning(true);
+    } else {
+      setPanWarning(false);
+    }
+  };
+
+  const submit = async (data: OrderPayload) => {
+    const normalized = {
+      ...data,
+      contact: {
+        ...data.contact,
+        phone: normalizePhone(data.contact.phone),
+      },
+      shippingAddress: sameAddress ? data.billingAddress : data.shippingAddress,
+    };
+    await onSubmit(normalized);
+  };
+
+  const billingErrors = errors.billingAddress as Record<string, { message?: string }> | undefined;
+  const shippingErrors = errors.shippingAddress as Record<string, { message?: string }> | undefined;
+
+  return (
+    <form onSubmit={handleSubmit(submit)} noValidate className="space-y-8">
+      {/* Customer Info */}
+      <div className="card p-6">
+        <h2 className="section-header">Customer Information</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="form-label" htmlFor="firstName">
+              First Name *
+            </label>
+            <input
+              id="firstName"
+              className="form-input"
+              placeholder="Sarah"
+              {...register("customer.firstName")}
+            />
+            <FieldError message={errors.customer?.firstName?.message} />
+          </div>
+          <div>
+            <label className="form-label" htmlFor="lastName">
+              Last Name *
+            </label>
+            <input
+              id="lastName"
+              className="form-input"
+              placeholder="Mitchell"
+              {...register("customer.lastName")}
+            />
+            <FieldError message={errors.customer?.lastName?.message} />
+          </div>
+        </div>
+      </div>
+
+      {/* Contact Info */}
+      <div className="card p-6">
+        <h2 className="section-header">Contact Information</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="form-label" htmlFor="email">
+              Email Address *
+            </label>
+            <input
+              id="email"
+              type="email"
+              className="form-input"
+              placeholder="sarah@example.com"
+              {...register("contact.email")}
+            />
+            <FieldError message={errors.contact?.email?.message} />
+          </div>
+          <div>
+            <label className="form-label" htmlFor="phone">
+              Phone Number *
+            </label>
+            <input
+              id="phone"
+              type="tel"
+              className="form-input"
+              placeholder="(404) 555-0182"
+              {...register("contact.phone")}
+            />
+            <FieldError message={errors.contact?.phone?.message} />
+            <p className="text-xs text-slate-400 mt-1">
+              Will be normalized to E.164 format
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Billing Address */}
+      <div className="card p-6">
+        <AddressFields
+          prefix="billingAddress"
+          register={register}
+          errors={{ billingAddress: billingErrors }}
+          label="Billing Address"
+        />
+      </div>
+
+      {/* Shipping Address */}
+      <div className="card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="section-header mb-0">Shipping Address</h2>
+          <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={sameAddress}
+              onChange={(e) => handleSameAddressToggle(e.target.checked)}
+              className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+            />
+            Same as billing
+          </label>
+        </div>
+        {!sameAddress && (
+          <AddressFields
+            prefix="shippingAddress"
+            register={register}
+            errors={{ shippingAddress: shippingErrors }}
+            label="Shipping Address"
+          />
+        )}
+        {sameAddress && (
+          <p className="text-sm text-slate-500 italic">
+            Shipping address will match billing address.
+          </p>
+        )}
+      </div>
+
+      {/* Order Items */}
+      <div className="card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="section-header mb-0">Order Items</h2>
+          <button
+            type="button"
+            onClick={() => append({ sku: "", name: "", qty: 1, price: 0 })}
+            className="btn-secondary text-xs"
+          >
+            + Add Item
+          </button>
+        </div>
+        <div className="space-y-3">
+          {fields.map((field, idx) => (
+            <div
+              key={field.id}
+              className="grid grid-cols-12 gap-3 items-start p-3 bg-slate-50 rounded-lg"
+            >
+              <div className="col-span-2">
+                <label className="form-label text-xs" htmlFor={`sku-${idx}`}>
+                  SKU
+                </label>
+                <input
+                  id={`sku-${idx}`}
+                  className="form-input text-xs"
+                  placeholder="TRV-001"
+                  {...register(`items.${idx}.sku`)}
+                />
+                <FieldError message={errors.items?.[idx]?.sku?.message} />
+              </div>
+              <div className="col-span-5">
+                <label className="form-label text-xs" htmlFor={`name-${idx}`}>
+                  Description
+                </label>
+                <input
+                  id={`name-${idx}`}
+                  className="form-input text-xs"
+                  placeholder="Caribbean Cruise Deposit"
+                  {...register(`items.${idx}.name`)}
+                />
+                <FieldError message={errors.items?.[idx]?.name?.message} />
+              </div>
+              <div className="col-span-2">
+                <label className="form-label text-xs" htmlFor={`qty-${idx}`}>
+                  Qty
+                </label>
+                <input
+                  id={`qty-${idx}`}
+                  type="number"
+                  min={1}
+                  className="form-input text-xs"
+                  {...register(`items.${idx}.qty`, { valueAsNumber: true })}
+                />
+                <FieldError message={errors.items?.[idx]?.qty?.message} />
+              </div>
+              <div className="col-span-2">
+                <label className="form-label text-xs" htmlFor={`price-${idx}`}>
+                  Price ($)
+                </label>
+                <input
+                  id={`price-${idx}`}
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  className="form-input text-xs"
+                  {...register(`items.${idx}.price`, { valueAsNumber: true })}
+                />
+                <FieldError message={errors.items?.[idx]?.price?.message} />
+              </div>
+              <div className="col-span-1 pt-6">
+                {fields.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => remove(idx)}
+                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    aria-label="Remove item"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        {errors.items && typeof errors.items.message === "string" && (
+          <FieldError message={errors.items.message} />
+        )}
+      </div>
+
+      {/* Payment Meta */}
+      <div className="card p-6">
+        <h2 className="section-header">Payment Information</h2>
+        <p className="text-xs text-slate-500 mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          ⚠ Do not enter full card numbers. Only last 4 digits and BIN are
+          accepted for fraud signal purposes.
+        </p>
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <label className="form-label" htmlFor="cardLast4">
+              Last 4 Digits
+            </label>
+            <input
+              id="cardLast4"
+              className="form-input font-mono"
+              placeholder="4242"
+              maxLength={4}
+              inputMode="numeric"
+              {...register("paymentMeta.cardLast4", {
+                onChange: handleCardLast4Change,
+              })}
+            />
+            {panWarning && (
+              <p className="text-xs text-red-600 mt-1 font-medium">
+                ⛔ Do not enter a full card number — last 4 digits only.
+              </p>
+            )}
+            <FieldError message={errors.paymentMeta?.cardLast4?.message} />
+          </div>
+          <div>
+            <label className="form-label" htmlFor="bin">
+              BIN (6 digits)
+            </label>
+            <input
+              id="bin"
+              className="form-input font-mono"
+              placeholder="424242"
+              maxLength={6}
+              inputMode="numeric"
+              {...register("paymentMeta.bin")}
+            />
+            <FieldError message={errors.paymentMeta?.bin?.message} />
+          </div>
+          <div>
+            <label className="form-label" htmlFor="brand">
+              Card Brand
+            </label>
+            <select
+              id="brand"
+              className="form-input"
+              {...register("paymentMeta.brand")}
+            >
+              <option value="">— Select —</option>
+              <option value="Visa">Visa</option>
+              <option value="Mastercard">Mastercard</option>
+              <option value="Amex">American Express</option>
+              <option value="Discover">Discover</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Context */}
+      <div className="card p-6">
+        <h2 className="section-header">Session Context (optional)</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="form-label" htmlFor="ip">
+              Customer IP Address
+            </label>
+            <input
+              id="ip"
+              className="form-input font-mono text-sm"
+              placeholder="75.148.22.100"
+              {...register("context.ip")}
+            />
+          </div>
+          <div>
+            <label className="form-label" htmlFor="userAgent">
+              User Agent
+            </label>
+            <input
+              id="userAgent"
+              className="form-input text-sm"
+              placeholder="Mozilla/5.0…"
+              {...register("context.userAgent")}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Submit */}
+      <div className="flex justify-end">
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="btn-primary px-8 py-3 text-base"
+        >
+          {isLoading ? (
+            <>
+              <LoadingSpinner size="sm" />
+              Running Verification…
+            </>
+          ) : (
+            <>
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.955 11.955 0 013 10c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.249-8.25-3.286z" />
+              </svg>
+              Run Verification
+            </>
+          )}
+        </button>
+      </div>
+    </form>
+  );
+}

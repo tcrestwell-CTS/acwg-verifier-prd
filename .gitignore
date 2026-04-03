@@ -1,0 +1,25 @@
+# Next.js
+.next/
+out/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Testing
+coverage/
+
+# Env
+.env
+.env.local
+.env.production
+
+# OS
+.DS_Store
+Thumbs.db
+
+# MSW (generated, not committed — run npm run msw:init)
+public/mockServiceWorker.js
+
+# TypeScript
+*.tsbuildinfo
