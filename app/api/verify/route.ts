@@ -13,6 +13,11 @@ import { checkPayment } from "@/lib/integrations/payment";
 import { checkIp } from "@/lib/integrations/ip";
 import { runRiskEngine } from "@/lib/services/riskEngine";
 import { checkVelocity } from "@/lib/services/velocityService";
+import { getFeatureSettings } from "@/lib/services/settingsService";
+import { checkIdentity } from "@/lib/integrations/identity";
+import { checkProperty } from "@/lib/integrations/property";
+import { checkDevice } from "@/lib/integrations/device";
+import { checkPhoneIntel } from "@/lib/integrations/phone-intel";
 import { randomUUID } from "crypto";
 
 export async function POST(req: NextRequest) {
@@ -44,6 +49,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const shippingAddr = (order.shippingAddress ?? order.billingAddress) as typeof order.billingAddress;
+    const billingAddr = order.billingAddress;
 
     console.log("verify:start", { requestId, email: order.contact.email });
 
@@ -83,6 +89,45 @@ export async function POST(req: NextRequest) {
       shippingAddress: shippingAddr,
       orderTotal: order.items.reduce((sum, i) => sum + i.qty * i.price, 0),
     });
+
+    // Load feature settings and run advanced integrations in parallel
+    const featureSettings = await getFeatureSettings();
+
+    const [identityResult, propertyResult, deviceResult, phoneIntelResult] = await Promise.all([
+      featureSettings.identityIntelligence
+        ? checkIdentity({
+            firstName: order.customer.firstName,
+            lastName: order.customer.lastName,
+            email: order.contact.email,
+            phone: order.contact.phone,
+            billingAddress: billingAddr,
+          }).catch((e) => { logger.error("identity check failed", { error: String(e) }); return null; })
+        : Promise.resolve(null),
+
+      featureSettings.propertyOwnership
+        ? checkProperty({
+            line1: billingAddr.line1,
+            city: billingAddr.city,
+            state: billingAddr.state,
+            postalCode: billingAddr.postalCode,
+            submittedName: `${order.customer.firstName} ${order.customer.lastName}`,
+          }).catch((e) => { logger.error("property check failed", { error: String(e) }); return null; })
+        : Promise.resolve(null),
+
+      featureSettings.deviceIntelligence
+        ? checkDevice({
+            ip: order.context?.ip ?? "",
+            userAgent: order.context?.userAgent,
+          }).catch((e) => { logger.error("device check failed", { error: String(e) }); return null; })
+        : Promise.resolve(null),
+
+      featureSettings.phoneRiskPlus
+        ? checkPhoneIntel({
+            phone: order.contact.phone,
+            submittedName: `${order.customer.firstName} ${order.customer.lastName}`,
+          }).catch((e) => { logger.error("phone intel check failed", { error: String(e) }); return null; })
+        : Promise.resolve(null),
+    ]);
 
     // Run deterministic risk engine
     const risk = runRiskEngine(
@@ -190,6 +235,10 @@ export async function POST(req: NextRequest) {
         payment: paymentResult,
         ip: ipResult,
         overall,
+        ...(identityResult  ? { identity: identityResult }    : {}),
+        ...(propertyResult  ? { property: propertyResult }    : {}),
+        ...(deviceResult    ? { device: deviceResult }        : {}),
+        ...(phoneIntelResult ? { phoneIntel: phoneIntelResult } : {}),
       },
     });
   } catch (err) {
@@ -209,3 +258,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
