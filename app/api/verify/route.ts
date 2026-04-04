@@ -41,6 +41,8 @@ export async function POST(req: NextRequest) {
   });
 
   try {
+    const shippingAddr = (order.shippingAddress ?? order.billingAddress) as typeof order.billingAddress;
+
     // Run all integration checks in parallel with retries
     const [addressResult, phoneResult, emailResult, paymentResult, ipResult] =
       await Promise.all([
