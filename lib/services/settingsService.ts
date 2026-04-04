@@ -10,12 +10,13 @@ export interface FeatureSettings {
   otpStepUp: boolean;
   documentRequest: boolean;
   payment3ds: boolean;
-  configJson: Record<string, unknown> | null;
   updatedAt: Date;
   updatedBy: string;
 }
 
-const DEFAULTS = {
+type FeatureUpdates = Partial<Omit<FeatureSettings, "id" | "updatedAt" | "updatedBy">>;
+
+const DEFAULTS: FeatureUpdates & { updatedBy: string } = {
   identityIntelligence: false,
   propertyOwnership: false,
   deviceIntelligence: false,
@@ -31,27 +32,29 @@ export async function getFeatureSettings(): Promise<FeatureSettings> {
   const existing = await db.verificationFeatureSettings.findFirst({
     orderBy: { updatedAt: "desc" },
   });
-  if (existing) return existing as FeatureSettings;
+  if (existing) return existing as unknown as FeatureSettings;
 
-  // Seed defaults on first access
   const created = await db.verificationFeatureSettings.create({ data: DEFAULTS });
   logger.info("Feature settings initialized with defaults");
-  return created as FeatureSettings;
+  return created as unknown as FeatureSettings;
 }
 
 /** Update feature settings with full audit trail */
 export async function updateFeatureSettings(
-  updates: Partial<Omit<FeatureSettings, "id" | "updatedAt">>,
+  updates: FeatureUpdates,
   actor: string
 ): Promise<FeatureSettings> {
   const current = await getFeatureSettings();
 
+  // Strip configJson from updates to avoid Prisma type issues
+  const { ...safeUpdates } = updates as Record<string, unknown>;
+  delete safeUpdates.configJson;
+
   const updated = await db.verificationFeatureSettings.update({
     where: { id: current.id },
-    data: { ...updates, updatedBy: actor },
+    data: { ...safeUpdates, updatedBy: actor },
   });
 
-  // Write audit record
   await db.verificationFeatureAudit.create({
     data: {
       oldValueJson: current as unknown as object,
@@ -61,7 +64,7 @@ export async function updateFeatureSettings(
   });
 
   logger.info("Feature settings updated", { actor, changes: Object.keys(updates) });
-  return updated as FeatureSettings;
+  return updated as unknown as FeatureSettings;
 }
 
 export async function getFeatureAuditLog(limit = 50) {
