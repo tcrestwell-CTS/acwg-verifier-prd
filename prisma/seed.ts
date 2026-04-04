@@ -18,62 +18,31 @@ async function main() {
       customerName: "Sarah Mitchell",
       email: "sarah.mitchell@gmail.com",
       phone: "+14045550182",
-      billingAddress: {
-        line1: "142 Peachtree St NW",
-        city: "Atlanta",
-        state: "GA",
-        postalCode: "30303",
-        country: "US",
-      },
-      shippingAddress: {
-        line1: "142 Peachtree St NW",
-        city: "Atlanta",
-        state: "GA",
-        postalCode: "30303",
-        country: "US",
-      },
+      billingAddress: { line1: "142 Peachtree St NW", city: "Atlanta", state: "GA", postalCode: "30303", country: "US" },
+      shippingAddress: { line1: "142 Peachtree St NW", city: "Atlanta", state: "GA", postalCode: "30303", country: "US" },
       items: [{ sku: "TRV-001", name: "Caribbean Cruise Deposit", qty: 1, price: 500 }],
       paymentMeta: { cardLast4: "4242", bin: "424242", brand: "Visa" },
-      context: { ip: "75.148.22.100", userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+      context: { ip: "75.148.22.100", userAgent: "Mozilla/5.0" },
     },
   });
 
   await prisma.verificationResult.create({
     data: {
       orderId: order1.id,
-      address: {
-        dpv: "Y", deliverable: true, residential: false, distanceKm: 0,
-        normalized: { line1: "142 PEACHTREE ST NW", city: "ATLANTA", state: "GA", postalCode: "30303", country: "US" },
-        reasons: ["Address confirmed deliverable"],
-      },
+      address: { dpv: "Y", deliverable: true, residential: false, distanceKm: 0, normalized: { line1: "142 PEACHTREE ST NW", city: "ATLANTA", state: "GA", postalCode: "30303", country: "US" }, reasons: ["Address confirmed deliverable"] },
       phone: { carrier: "AT&T", type: "mobile", active: true, riskScore: 12, e164: "+14045550182", reasons: ["Active mobile number"] },
       email: { disposable: false, mxValid: true, domainRisk: "low", reasons: ["Domain has valid MX records"] },
       payment: { avs: "Y", cvv: "M", binCountry: "US", binType: "credit", reasons: ["AVS match", "CVV match"] },
-      ip: { country: "US", proxy: false, vpn: false, distanceToShipKm: 8, reasons: ["IP geolocation matches shipping area"] },
+      ip: { country: "US", proxy: false, vpn: false, distanceToShipKm: 8, reasons: ["IP matches shipping area"] },
       overall: { score: 0, decision: "approved", reasons: [] },
     },
   });
 
   await prisma.decision.create({
-    data: {
-      orderId: order1.id,
-      status: DecisionStatus.approved,
-      reasons: ["All checks passed"],
-      decidedBy: "System Auto-Approve",
-      decidedAt: new Date(),
-    },
+    data: { orderId: order1.id, status: DecisionStatus.approved, reasons: ["All checks passed"], decidedBy: "System", decidedAt: new Date() },
   });
 
-  await prisma.auditLog.create({
-    data: {
-      orderId: order1.id,
-      actor: "system",
-      action: "verify",
-      payload: { score: 0, decision: "approved" },
-    },
-  });
-
-  // ── Order 2: Medium Risk (Derek Okafor) ───────────────────────────────────
+  // ── Order 2: Medium Risk (Derek Okafor) ──────────────────────────────────
   const order2 = await prisma.order.create({
     data: {
       customerName: "Derek Okafor",
@@ -90,30 +59,20 @@ async function main() {
   await prisma.verificationResult.create({
     data: {
       orderId: order2.id,
-      address: {
-        dpv: "Y", deliverable: true, residential: false, distanceKm: 3150,
-        normalized: { line1: "8820 SUNSET BLVD", city: "LOS ANGELES", state: "CA", postalCode: "90069", country: "US" },
-        reasons: ["Billing/shipping addresses are 3,150 km apart"],
-      },
+      address: { dpv: "Y", deliverable: true, residential: false, distanceKm: 3150, reasons: ["Billing/shipping 3,150 km apart"] },
       phone: { carrier: "T-Mobile", type: "mobile", active: true, riskScore: 28, e164: "+17705550934", reasons: ["Active mobile number"] },
-      email: { disposable: false, mxValid: true, domainRisk: "low", reasons: ["Outlook.com is a legitimate provider"] },
-      payment: { avs: "P", cvv: "M", binCountry: "US", binType: "credit", reasons: ["AVS partial match — ZIP matched but street did not"] },
-      ip: { country: "US", proxy: false, vpn: false, distanceToShipKm: 120, reasons: ["IP near Los Angeles"] },
+      email: { disposable: false, mxValid: true, domainRisk: "low", reasons: ["Legitimate provider"] },
+      payment: { avs: "P", cvv: "M", binCountry: "US", binType: "credit", reasons: ["AVS partial match"] },
+      ip: { country: "US", proxy: false, vpn: false, distanceToShipKm: 120, reasons: ["IP near shipping"] },
       overall: { score: 40, decision: "queued", reasons: ["Billing/shipping distance exceeds threshold", "AVS partial match"] },
     },
   });
 
   await prisma.decision.create({
-    data: {
-      orderId: order2.id,
-      status: DecisionStatus.queued,
-      reasons: ["Billing/shipping distance exceeds threshold", "AVS partial"],
-      decidedBy: "System",
-      decidedAt: new Date(),
-    },
+    data: { orderId: order2.id, status: DecisionStatus.queued, reasons: ["Distance exceeds threshold"], decidedBy: "System", decidedAt: new Date() },
   });
 
-  // ── Order 3: High Risk (Alex Rivera) ──────────────────────────────────────
+  // ── Order 3: High Risk (Alex Rivera) ─────────────────────────────────────
   const order3 = await prisma.order.create({
     data: {
       customerName: "Alex Rivera",
@@ -130,40 +89,26 @@ async function main() {
   await prisma.verificationResult.create({
     data: {
       orderId: order3.id,
-      address: { dpv: "N", deliverable: false, residential: false, distanceKm: 12, reasons: ["Address not found in USPS database"] },
-      phone: { type: "voip", active: false, riskScore: 91, reasons: ["VoIP number", "Appears disconnected"] },
-      email: { disposable: true, mxValid: false, domainRisk: "high", reasons: ["Disposable email domain"] },
-      payment: { avs: "N", cvv: "N", binCountry: "US", binType: "prepaid", reasons: ["AVS failed", "CVV failed", "Prepaid card"] },
-      ip: { country: "NL", proxy: true, vpn: false, distanceToShipKm: 8900, reasons: ["Known proxy/Tor exit node"] },
-      overall: { score: 95, decision: "denied", reasons: ["Address non-deliverable", "Disposable email", "AVS+CVV failure", "Proxy IP"] },
+      address: { dpv: "N", deliverable: false, residential: false, distanceKm: 12, reasons: ["Address not in USPS database"] },
+      phone: { type: "voip", active: false, riskScore: 91, reasons: ["VoIP", "Disconnected"] },
+      email: { disposable: true, mxValid: false, domainRisk: "high", reasons: ["Disposable domain"] },
+      payment: { avs: "N", cvv: "N", binCountry: "US", binType: "prepaid", reasons: ["AVS failed", "CVV failed"] },
+      ip: { country: "NL", proxy: true, vpn: false, distanceToShipKm: 8900, reasons: ["Proxy detected"] },
+      overall: { score: 95, decision: "denied", reasons: ["Non-deliverable address", "Disposable email", "AVS+CVV failure", "Proxy IP"] },
     },
   });
 
   await prisma.decision.create({
-    data: {
-      orderId: order3.id,
-      status: DecisionStatus.queued,
-      reasons: ["Flagged for manual review"],
-      decidedBy: "System",
-      decidedAt: new Date(),
-    },
+    data: { orderId: order3.id, status: DecisionStatus.queued, reasons: ["Flagged for review"], decidedBy: "System", decidedAt: new Date() },
   });
 
-  console.log(`✅ Seeded 3 orders (IDs: ${order1.id}, ${order2.id}, ${order3.id})`);
-}
-
-main()
-  .catch((e) => {
-    console.error("Seed failed:", e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+  console.log(`✅ Seeded 3 orders`);
 
   // ── Default superadmin user ───────────────────────────────────────────────
   const defaultPassword = process.env.ADMIN_SEED_PASSWORD ?? "ChangeMe123!";
   const passwordHash = await hash(defaultPassword, 12);
 
-  await db.adminUser.upsert({
+  await prisma.adminUser.upsert({
     where: { email: "admin@acwg.net" },
     update: {},
     create: {
@@ -175,5 +120,13 @@ main()
     },
   });
 
-  console.log(`✅ Default admin created: admin@acwg.net / ${defaultPassword}`);
-  console.log("⚠️  Change this password immediately via /api/admin/users");
+  console.log(`✅ Admin user: admin@acwg.net / ${defaultPassword}`);
+  console.log("⚠️  Change this password immediately after first login");
+}
+
+main()
+  .catch((e) => {
+    console.error("Seed failed:", e);
+    process.exit(1);
+  })
+  .finally(() => prisma.$disconnect());
