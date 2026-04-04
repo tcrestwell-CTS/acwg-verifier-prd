@@ -13,13 +13,15 @@ export async function GET() {
   // Step 1: Token exchange
   let token: string;
   try {
-    const tokenRes = await fetch("https://property.corelogicapi.com/oauth2/token", {
+    const tokenRes = await fetch("https://property.corelogicapi.com/oauth/client_credential/accesstoken?grant_type=client_credentials", {
       method: "POST",
       headers: {
         Authorization: `Basic ${credentials}`,
         "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Length": "0",
       },
-      body: "grant_type=client_credentials",
+      body: "",
+      // Apigee requires Content-Length: 0 with empty body
     });
 
     const tokenText = await tokenRes.text();
