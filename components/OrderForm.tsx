@@ -163,7 +163,7 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
   const shippingErrors = errors.shippingAddress as Record<string, { message?: string }> | undefined;
 
   return (
-    <form onSubmit={handleSubmit(submit)} noValidate className="space-y-8">
+    <form onSubmit={handleSubmit(submit, (errors) => { console.error("Form validation errors:", JSON.stringify(errors, null, 2)); })} noValidate className="space-y-8">
       {/* Customer Info */}
       <div className="card p-6">
         <h2 className="section-header">Customer Information</h2>
