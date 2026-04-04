@@ -2,14 +2,27 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import type { OrderRecord } from "@/lib/schemas";
+// Shape returned by GET /api/orders (flattened for the list view)
+interface OrderListItem {
+  id: string;
+  createdAt: string;
+  customerName: string;
+  email: string;
+  phone: string;
+  currentStatus: "approved" | "queued" | "denied";
+  overall: {
+    score: number;
+    decision: string;
+    reasons: string[];
+  };
+}
 import { DecisionBadge } from "./ui/Badge";
 import { formatDate, scoreLabel, truncate } from "@/lib/format";
 import { scoreColor } from "@/lib/risk";
 import { clsx } from "clsx";
 
 interface QueueTableProps {
-  orders: OrderRecord[];
+  orders: OrderListItem[];
 }
 
 type FilterStatus = "all" | "approved" | "queued" | "denied";
@@ -25,7 +38,7 @@ export function QueueTable({ orders }: QueueTableProps) {
   const [sortBy, setSortBy] = useState<"createdAt" | "score">("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  const filtered = useMemo(() => {
+  const filtered = useMemo<OrderListItem[]>(() => {
     return orders
       .filter((o) => statusFilter === "all" || o.currentStatus === statusFilter)
       .filter((o) => {
@@ -185,7 +198,7 @@ export function QueueTable({ orders }: QueueTableProps) {
               <tbody className="divide-y divide-slate-100">
                 {paginated.map((order) => {
                   const score = order.overall?.score ?? 0;
-                  const decision = order.overall?.decision ?? order.currentStatus;
+                  const decision = (order.overall?.decision ?? order.currentStatus) as "approved" | "queued" | "denied";
                   const reasons: string[] = order.overall?.reasons ?? [];
                   return (
                     <tr
@@ -199,14 +212,11 @@ export function QueueTable({ orders }: QueueTableProps) {
                         {formatDate(order.createdAt)}
                       </td>
                       <td className="px-4 py-3">
-                        <p className="font-medium text-slate-900">
-                          {order.order.customer.firstName}{" "}
-                          {order.order.customer.lastName}
-                        </p>
+                        <p className="font-medium text-slate-900">{order.customerName}</p>
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-600">
-                        <p>{truncate(order.order.contact.email, 30)}</p>
-                        <p className="text-slate-400">{order.order.contact.phone}</p>
+                        <p>{truncate(order.email, 30)}</p>
+                        <p className="text-slate-400">{order.phone}</p>
                       </td>
                       <td className="px-4 py-3">
                         <span
