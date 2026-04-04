@@ -58,7 +58,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(result);
   } catch (err) {
-    logger.error("Failed to list orders", { error: String(err) });
-    return NextResponse.json({ error: "Failed to load orders" }, { status: 500 });
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error("Failed to list orders", { error: message });
+    return NextResponse.json({ error: "Failed to load orders", detail: message }, { status: 500 });
   }
 }
