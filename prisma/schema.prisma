@@ -390,3 +390,29 @@ enum AdminRole {
   admin      // all reviewer permissions + rules, reports, chargebacks
   superadmin // all admin permissions + user management, retention, experiments
 }
+
+// ─── Advanced Verification Feature Settings ───────────────────────────────────
+
+model VerificationFeatureSettings {
+  id                        String   @id @default(cuid())
+  identityIntelligence      Boolean  @default(false)
+  propertyOwnership         Boolean  @default(false)
+  deviceIntelligence        Boolean  @default(false)
+  phoneRiskPlus             Boolean  @default(false)
+  otpStepUp                 Boolean  @default(true)
+  documentRequest           Boolean  @default(true)
+  payment3ds                Boolean  @default(false)
+  configJson                Json?
+  updatedAt                 DateTime @updatedAt
+  updatedBy                 String   @default("system")
+}
+
+model VerificationFeatureAudit {
+  id           String   @id @default(cuid())
+  oldValueJson Json
+  newValueJson Json
+  actorId      String
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+}
