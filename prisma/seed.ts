@@ -1,4 +1,5 @@
 import { PrismaClient, DecisionStatus } from "@prisma/client";
+import { hash } from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -159,7 +160,6 @@ main()
   .finally(() => prisma.$disconnect());
 
   // ── Default superadmin user ───────────────────────────────────────────────
-  const { hash } = await import("bcryptjs");
   const defaultPassword = process.env.ADMIN_SEED_PASSWORD ?? "ChangeMe123!";
   const passwordHash = await hash(defaultPassword, 12);
 
