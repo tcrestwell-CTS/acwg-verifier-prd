@@ -2,7 +2,14 @@
 
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { OrderPayloadSchema, type OrderPayload } from "@/lib/schemas";
+import { OrderPayloadSchema, AddressSchema, OrderItemSchema, type OrderPayload } from "@/lib/schemas";
+import { z } from "zod";
+
+// Form-level schema: shippingAddress is optional (we override at submit when same-as-billing)
+const FormSchema = OrderPayloadSchema.extend({
+  shippingAddress: AddressSchema.partial().optional(),
+});
+type FormValues = z.infer<typeof FormSchema>;
 import { normalizePhone, normalizeState, normalizeZip } from "@/lib/format";
 import { useState } from "react";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
@@ -115,10 +122,9 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
     control,
     getValues,
     setValue,
-    watch,
     formState: { errors },
-  } = useForm<OrderPayload>({
-    resolver: zodResolver(OrderPayloadSchema),
+  } = useForm<FormValues>({
+    resolver: zodResolver(FormSchema),
     defaultValues: {
       items: [{ sku: "", name: "", qty: 1, price: "" as unknown as number }],
       paymentMeta: {},
@@ -129,15 +135,6 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
-
-  // Keep shippingAddress in sync with billingAddress when checkbox is checked
-  const billingAddress = watch("billingAddress");
-  if (sameAddress && billingAddress) {
-    const current = getValues("shippingAddress");
-    if (current?.line1 !== billingAddress.line1 || current?.city !== billingAddress.city) {
-      setValue("shippingAddress", billingAddress, { shouldValidate: false });
-    }
-  }
 
   const handleSameAddressToggle = (checked: boolean) => {
     setSameAddress(checked);
@@ -157,7 +154,7 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
     }
   };
 
-  const submit = async (data: OrderPayload) => {
+  const submit = async (data: FormValues) => {
     const normalized = {
       ...data,
       contact: {
@@ -167,7 +164,7 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
       // Always derive shipping from billing when checked — don't rely on setValue timing
       shippingAddress: sameAddress ? data.billingAddress : data.shippingAddress,
     };
-    await onSubmit(normalized);
+    await onSubmit(normalized as OrderPayload);
   };
 
   const billingErrors = errors.billingAddress as Record<string, { message?: string }> | undefined;
