@@ -100,7 +100,7 @@ export function VerificationPanel({ verification }: VerificationPanelProps) {
 
   const addressStatus = sectionStatus(
     address.reasons,
-    !address.deliverable || address.dpv === "N"
+    address.dpv === "N" && false // DPV not used — 3rd party delivery
   );
   const phoneStatus = sectionStatus(
     phone.reasons,
