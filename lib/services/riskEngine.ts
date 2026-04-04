@@ -1,5 +1,6 @@
-import rulesConfig from "@/config/risk-rules.json";
+import defaultRulesConfig from "@/config/risk-rules.json";
 import type { VerificationResult } from "@/lib/schemas";
+import type { RulesConfig } from "@/lib/services/rulesService";
 
 export interface RiskResult {
   score: number;
@@ -14,9 +15,13 @@ export interface RiskResult {
   };
 }
 
-const { thresholds } = rulesConfig;
+// thresholds resolved per call
 
-export function runRiskEngine(v: Omit<VerificationResult, "overall">): RiskResult {
+export function runRiskEngine(
+  v: Omit<VerificationResult, "overall">,
+  config?: RulesConfig
+): RiskResult {
+  const { thresholds } = config ?? defaultRulesConfig;
   const reasons: string[] = [];
   const components = { address: 0, phone: 0, email: 0, payment: 0, ip: 0 };
 
