@@ -91,6 +91,52 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               {children}
             </main>
+
+            {/* Footer */}
+            <footer className="mt-16 border-t border-slate-200 bg-slate-900 text-slate-400">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+                  {/* Branding */}
+                  <div>
+                    <p className="text-white font-bold text-sm tracking-wide mb-2">AMERICAN CARPET WHOLESALERS</p>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Fraud Verification Portal — Internal Use Only.<br />
+                      Authorized personnel only. Unauthorized access is prohibited.
+                    </p>
+                  </div>
+
+                  {/* Disclaimers */}
+                  <div>
+                    <p className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Legal &amp; Compliance</p>
+                    <ul className="text-xs text-slate-400 space-y-1 leading-relaxed">
+                      <li>Risk scores are advisory only and do not constitute credit decisions.</li>
+                      <li>All verification data is processed in accordance with applicable privacy laws.</li>
+                      <li>Cardholder data is never stored — PCI DSS scope minimized.</li>
+                      <li>US shipping addresses only. International orders not supported.</li>
+                    </ul>
+                  </div>
+
+                  {/* Technology */}
+                  <div>
+                    <p className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Platform</p>
+                    <ul className="text-xs text-slate-400 space-y-1">
+                      <li>Secure HTTPS · Data encrypted at rest</li>
+                      <li>Audit logged · Role-based access control</li>
+                      <li>Session timeout: 8 hours</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-700 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <p className="text-xs text-slate-500">
+                    © 2026 Crestwell Travel Technologies, LLC. All rights reserved. Service created and managed by Crestwell Travel Technologies 2026.
+                  </p>
+                  <p className="text-xs text-slate-600">
+                    Proprietary software — not for redistribution. Unauthorized duplication or disclosure is strictly prohibited.
+                  </p>
+                </div>
+              </div>
+            </footer>
           </ToastProvider>
           <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>
