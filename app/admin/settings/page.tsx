@@ -67,8 +67,12 @@ export default function SettingsPage() {
   const { data: settings, isLoading } = useQuery<FeatureSettings>({
     queryKey: ["feature-settings"],
     queryFn: async () => (await fetch("/api/admin/settings")).json(),
-    onSuccess: (data) => setLocal(data),
   });
+
+  // Sync local state when settings load
+  useEffect(() => {
+    if (settings) setLocal(settings);
+  }, [settings]);
 
   const { data: auditLog } = useQuery({
     queryKey: ["settings-audit"],
