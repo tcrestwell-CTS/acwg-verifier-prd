@@ -13,7 +13,7 @@ export async function GET() {
   // Step 1: Token exchange
   let token: string;
   try {
-    const tokenRes = await fetch("https://access.corelogicapi.com/v2/oauth2/token", {
+    const tokenRes = await fetch("https://property.corelogicapi.com/oauth2/token", {
       method: "POST",
       headers: {
         Authorization: `Basic ${credentials}`,
