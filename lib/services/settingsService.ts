@@ -16,7 +16,7 @@ export interface FeatureSettings {
   updatedBy: string;
 }
 
-const DEFAULTS: Omit<FeatureSettings, "id" | "updatedAt"> = {
+const DEFAULTS = {
   identityIntelligence: false,
   propertyOwnership: false,
   deviceIntelligence: false,
@@ -24,7 +24,7 @@ const DEFAULTS: Omit<FeatureSettings, "id" | "updatedAt"> = {
   otpStepUp: true,
   documentRequest: true,
   payment3ds: false,
-  configJson: Prisma.JsonNull,
+  configJson: Prisma.JsonNull as unknown,
   updatedBy: "system",
 };
 
