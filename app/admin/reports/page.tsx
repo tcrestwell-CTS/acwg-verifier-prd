@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { LoadingPage } from "@/components/ui/LoadingSpinner";
 import { scoreColor } from "@/lib/risk";
@@ -186,6 +187,3 @@ export default function ReportsPage() {
     </div>
   );
 }
-
-// Need useState import
-import { useState } from "react";
