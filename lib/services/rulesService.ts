@@ -107,7 +107,7 @@ export async function rollbackRules(id: string, actor: string) {
 
   // Create a new draft from the target version's rules
   const draft = await createDraftRules({
-    rules: target.rules as RulesConfig,
+    rules: target.rules as unknown as RulesConfig,
     description: `Rollback to v${target.version}`,
     actor,
   });
