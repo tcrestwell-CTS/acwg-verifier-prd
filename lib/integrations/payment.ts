@@ -88,8 +88,9 @@ export async function checkPayment(meta: PaymentMeta): Promise<PaymentCheckResul
   // a zero-dollar auth or preauth response. For stub: simulate based on BIN patterns.
   // In production: swap this for your Stripe/Authorize.net preauth result.
   const isTestBin = meta.bin === "424242" || meta.bin === "411111";
-  const avs: "Y" | "N" | "P" | "U" = isTestBin ? "Y" : meta.bin ? "P" : "U";
-  const cvv: "M" | "N" | "U" = isTestBin ? "M" : meta.cardLast4 ? "M" : "U";
+  // Cast through unknown to preserve the full union type for downstream checks
+  const avs = (isTestBin ? "Y" : meta.bin ? "P" : "U") as "Y" | "N" | "P" | "U";
+  const cvv = (isTestBin ? "M" : meta.cardLast4 ? "M" : "U") as "M" | "N" | "U";
 
   if (avs === "N") reasons.push("AVS failed — billing address does not match card records");
   else if (avs === "P") reasons.push("AVS partial match — ZIP matched but street address did not");
