@@ -119,7 +119,7 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
   } = useForm<OrderPayload>({
     resolver: zodResolver(OrderPayloadSchema),
     defaultValues: {
-      items: [{ sku: "", name: "", qty: 1, price: 0 }],
+      items: [{ sku: "", name: "", qty: 1, price: "" as unknown as number }],
       paymentMeta: {},
       context: {},
       billingAddress: { country: "US" },
