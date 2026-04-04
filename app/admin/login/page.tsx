@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 
-export default function AdminLoginPage() {
+function LoginForm() {
   const { status } = useSession();
   const router = useRouter();
   const params = useSearchParams();
@@ -142,5 +142,17 @@ export default function AdminLoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(135deg, #cc1111 0%, #991b1b 40%, #1e3a8a 100%)" }}>
+        <LoadingSpinner size="lg" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
