@@ -43,5 +43,6 @@ export async function requireAuth(
 
 /** Get actor string for audit logs */
 export function getActor(session: Awaited<ReturnType<typeof getServerSession>>): string {
-  return session?.user?.email ?? "unknown";
+  const s = session as { user?: { email?: string } } | null;
+  return s?.user?.email ?? "unknown";
 }
