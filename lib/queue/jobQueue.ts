@@ -79,29 +79,11 @@ async function processNextViaPrisma(type?: string): Promise<boolean> {
 
 // ── Redis-backed queue (when FEATURE_REDIS_QUEUE=true) ────────────────────────
 
+// Redis support: install the "redis" package and set REDIS_URL to enable.
+// For now all jobs use the Prisma-backed queue.
 async function enqueueViaRedis(job: Job): Promise<string> {
-  // Redis is optional — fall back to Prisma when not configured
-  if (!process.env.REDIS_URL) {
-    logger.warn("REDIS_URL not set, falling back to Prisma queue");
-    return enqueueViaPrisma(job);
-  }
-
-  try {
-    // Dynamic require with webpack ignore comment so it is not bundled
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const redis = require(/* webpackIgnore: true */ "redis") as typeof import("redis");
-    const client = redis.createClient({ url: process.env.REDIS_URL });
-    await client.connect();
-
-    const id = `job:${Date.now()}:${Math.random().toString(36).slice(2)}`;
-    const score = (job.runAt ?? new Date()).getTime();
-    await client.zAdd(`queue:${job.type}`, { score, value: JSON.stringify({ id, ...job }) });
-    await client.disconnect();
-    return id;
-  } catch {
-    logger.warn("Redis unavailable, falling back to Prisma queue");
-    return enqueueViaPrisma(job);
-  }
+  logger.warn("Redis queue not installed — using Prisma queue. Install 'redis' package to enable.");
+  return enqueueViaPrisma(job);
 }
 
 // ── Job dispatcher ────────────────────────────────────────────────────────────
