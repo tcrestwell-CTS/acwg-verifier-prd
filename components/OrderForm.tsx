@@ -115,6 +115,7 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
     control,
     getValues,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<OrderPayload>({
     resolver: zodResolver(OrderPayloadSchema),
@@ -128,6 +129,15 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
+
+  // Keep shippingAddress in sync with billingAddress when checkbox is checked
+  const billingAddress = watch("billingAddress");
+  if (sameAddress && billingAddress) {
+    const current = getValues("shippingAddress");
+    if (current?.line1 !== billingAddress.line1 || current?.city !== billingAddress.city) {
+      setValue("shippingAddress", billingAddress, { shouldValidate: false });
+    }
+  }
 
   const handleSameAddressToggle = (checked: boolean) => {
     setSameAddress(checked);
