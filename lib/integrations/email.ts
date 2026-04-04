@@ -35,7 +35,7 @@ export async function checkEmail(email: string): Promise<EmailCheckResult> {
 
   // Check disposable
   const isDisposable = DISPOSABLE_DOMAINS.has(domain) ||
-    [...DISPOSABLE_DOMAINS].some((d) => domain.endsWith(`.${d}`));
+    Array.from(DISPOSABLE_DOMAINS).some((d) => domain.endsWith(`.${d}`));
 
   // Check MX records
   let mxValid = false;
