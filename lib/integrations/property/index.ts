@@ -30,7 +30,7 @@ async function getCoreLogicToken(): Promise<string> {
   const secret = process.env.PROPERTY_API_SECRET!;
   const credentials = Buffer.from(`${key}:${secret}`).toString("base64");
 
-  const res = await fetch("https://access.corelogicapi.com/v2/oauth2/token", {
+  const res = await fetch("https://property.corelogicapi.com/oauth2/token", {
     method: "POST",
     headers: {
       Authorization: `Basic ${credentials}`,
