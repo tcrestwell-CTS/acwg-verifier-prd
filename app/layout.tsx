@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <QueryClientProvider client={queryClient}>
           <ToastProvider>
             {/* Header */}
-            <header className="sticky top-0 z-40 shadow-md" style={{ background: "linear-gradient(135deg, #cc1111 0%, #991b1b 50%, #1e3a8a 100%)" }}>
+            <header className="sticky top-0 z-40 shadow-md" style={{ background: "linear-gradient(135deg, #8b1a1a 0%, #6b1414 45%, #1a2f5e 100%)" }}>
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-16">
                   {/* Logo */}
