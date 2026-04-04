@@ -7,7 +7,7 @@ import { VerificationPanel } from "@/components/VerificationPanel";
 import { RiskSummary } from "@/components/RiskSummary";
 import { DecisionModal } from "@/components/DecisionModal";
 import { ClaudeSummary } from "@/components/ClaudeSummary";
-import { ToastProvider, useToast } from "@/components/ui/Toast";
+import { useToast } from "@/components/ui/Toast";
 import type { OrderPayload, VerificationResult, DecisionFormValues } from "@/lib/schemas";
 
 interface VerifyResponse {
@@ -15,7 +15,7 @@ interface VerifyResponse {
   verification: VerificationResult;
 }
 
-function NewOrderContent() {
+export default function NewOrderPage() {
   const { success, error: toastError } = useToast();
   const [orderId, setOrderId] = useState<string | null>(null);
   const [currentOrder, setCurrentOrder] = useState<OrderPayload | null>(null);
@@ -32,7 +32,10 @@ function NewOrderContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Verification failed");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error ?? "Verification failed");
+      }
       return res.json();
     },
     onSuccess: (data, variables) => {
@@ -41,8 +44,8 @@ function NewOrderContent() {
       setCurrentOrder(variables);
       window.scrollTo({ top: 0, behavior: "smooth" });
     },
-    onError: () => {
-      toastError("Verification failed", "Could not run checks. Please try again.");
+    onError: (err: Error) => {
+      toastError("Verification failed", err.message);
     },
   });
 
@@ -51,20 +54,13 @@ function NewOrderContent() {
       const res = await fetch("/api/decision", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId,
-          ...values,
-          decidedAt: new Date().toISOString(),
-        }),
+        body: JSON.stringify({ orderId, ...values, decidedAt: new Date().toISOString() }),
       });
       if (!res.ok) throw new Error("Decision failed");
       return res.json();
     },
     onSuccess: (_, variables) => {
-      success(
-        `Order ${variables.status}`,
-        `Decision recorded by ${variables.decidedBy}`
-      );
+      success(`Order ${variables.status}`, `Decision recorded by ${variables.decidedBy}`);
       setDecisionModal(null);
     },
     onError: () => {
@@ -72,72 +68,44 @@ function NewOrderContent() {
     },
   });
 
-  const openModal = (status: "approved" | "queued" | "denied") => {
-    setDecisionModal({ open: true, initialStatus: status });
-  };
-
   return (
     <div>
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900">New Order Verification</h1>
-        <p className="text-slate-500 mt-1">
-          Enter order details to run fraud signals and receive a risk assessment.
-        </p>
+        <p className="text-slate-500 mt-1">Enter order details to run fraud signals and receive a risk assessment.</p>
       </div>
 
       {!verification ? (
-        <OrderForm
-          onSubmit={verifyMutation.mutateAsync}
-          isLoading={verifyMutation.isPending}
-        />
+        <OrderForm onSubmit={verifyMutation.mutateAsync} isLoading={verifyMutation.isPending} />
       ) : (
         <div className="space-y-6 animate-fade-in">
-          {/* Back to form */}
-          <button
-            type="button"
-            onClick={() => {
-              setVerification(null);
-              setCurrentOrder(null);
-              setOrderId(null);
-            }}
-            className="btn-secondary text-sm"
-          >
+          <button type="button" onClick={() => { setVerification(null); setCurrentOrder(null); setOrderId(null); }} className="btn-secondary text-sm">
             ← Start New Order
           </button>
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            {/* Left: Verification Panel */}
             <div className="lg:col-span-3 space-y-4">
               <h2 className="text-lg font-semibold text-slate-900">
                 Verification Results
-                <span className="ml-2 text-sm font-normal text-slate-400 font-mono">
-                  #{orderId}
-                </span>
+                <span className="ml-2 text-sm font-normal text-slate-400 font-mono">#{orderId}</span>
               </h2>
               <VerificationPanel verification={verification} />
-              {currentOrder && (
-                <ClaudeSummary
-                  order={currentOrder}
-                  verification={verification}
-                />
-              )}
+              {currentOrder && <ClaudeSummary order={currentOrder} verification={verification} />}
             </div>
 
-            {/* Right: Risk Summary */}
             <div className="lg:col-span-2">
               <div className="sticky top-20">
                 <RiskSummary
                   verification={verification}
-                  onApprove={() => openModal("approved")}
-                  onQueue={() => openModal("queued")}
-                  onDeny={() => openModal("denied")}
+                  onApprove={() => setDecisionModal({ open: true, initialStatus: "approved" })}
+                  onQueue={() => setDecisionModal({ open: true, initialStatus: "queued" })}
+                  onDeny={() => setDecisionModal({ open: true, initialStatus: "denied" })}
                   isPending={decisionMutation.isPending}
                 />
               </div>
             </div>
           </div>
 
-          {/* Decision Modal */}
           {decisionModal && (
             <DecisionModal
               open={decisionModal.open}
@@ -150,13 +118,5 @@ function NewOrderContent() {
         </div>
       )}
     </div>
-  );
-}
-
-export default function NewOrderPage() {
-  return (
-    <ToastProvider>
-      <NewOrderContent />
-    </ToastProvider>
   );
 }
