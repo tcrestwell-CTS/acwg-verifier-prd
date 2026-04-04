@@ -49,8 +49,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                       </svg>
                     </div>
                     <div>
-                      <p className="text-white font-bold text-sm leading-tight tracking-wide">AMERICAN CARPET WHOLESALERS</p>
-                      <p className="text-red-200 text-xs font-medium tracking-wider">FRAUD VERIFICATION PORTAL</p>
+                      <p className="text-white font-extrabold text-sm leading-tight tracking-widest drop-shadow">AMERICAN CARPET WHOLESALERS</p>
+                      <p className="text-white/90 text-xs font-semibold tracking-widest">FRAUD VERIFICATION PORTAL</p>
                     </div>
                   </Link>
 
@@ -61,7 +61,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                         "px-3 py-2 rounded-md text-sm font-semibold transition-all",
                         pathname.startsWith(item.href)
                           ? "bg-white text-red-700 shadow"
-                          : "text-white hover:bg-white/20"
+                          : "text-white font-medium hover:bg-white/20"
                       )}>
                         {item.label}
                       </Link>
@@ -72,7 +72,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                         "px-3 py-2 rounded-md text-xs font-semibold transition-all",
                         pathname.startsWith(item.href)
                           ? "bg-white/90 text-navy-700 shadow"
-                          : "text-white/70 hover:bg-white/20 hover:text-white"
+                          : "text-white/90 hover:bg-white/20 hover:text-white"
                       )}>
                         {item.label}
                       </Link>
@@ -82,7 +82,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   {/* Live badge */}
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                    <span className="text-xs text-green-200 font-medium">Live</span>
+                    <span className="text-xs text-green-300 font-semibold">Live</span>
                   </div>
                 </div>
               </div>
