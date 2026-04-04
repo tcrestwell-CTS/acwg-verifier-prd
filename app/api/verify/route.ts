@@ -159,9 +159,18 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err) {
-    logger.error("Verification failed", { requestId, error: String(err) });
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error("Verification failed", { requestId, error: message });
+
+    if (err instanceof ZodError) {
+      return NextResponse.json(
+        { error: "Invalid request payload", issues: err.flatten() },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Verification failed — please try again" },
+      { error: message },
       { status: 500 }
     );
   }
