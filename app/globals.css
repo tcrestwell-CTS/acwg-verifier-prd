@@ -30,15 +30,15 @@
   .btn-success   { @apply btn bg-green-600 text-white hover:bg-green-700 focus:ring-green-500; }
 
   .form-input {
-    @apply w-full px-3 py-2 rounded-lg border border-slate-300 text-sm placeholder:text-slate-400
+    @apply w-full px-3 py-2 rounded-lg border border-slate-300 text-sm placeholder:text-slate-500
            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
            disabled:bg-slate-50 disabled:cursor-not-allowed transition-colors;
   }
-  .form-label { @apply block text-sm font-semibold text-slate-700 mb-1; }
+  .form-label { @apply block text-sm font-semibold text-slate-900 mb-1; }
   .form-error { @apply text-xs text-red-600 mt-1; }
 
   .section-header {
-    @apply flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest mb-4;
+    @apply flex items-center gap-2 text-xs font-bold text-slate-600 uppercase tracking-widest mb-4;
   }
 }
 
