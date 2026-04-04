@@ -19,6 +19,7 @@ const adminItems = [
   { href: "/admin/reports",      label: "Reports" },
   { href: "/admin/chargebacks",  label: "Chargebacks" },
   { href: "/admin/jobs",         label: "Jobs" },
+  { href: "/admin/settings",     label: "Settings" },
 ];
 
 export default function RootLayout({ children }: { children: ReactNode }) {
