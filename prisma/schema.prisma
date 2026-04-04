@@ -256,3 +256,115 @@ enum JobStatus {
   failed
   dead_letter
 }
+
+// ─── Sprint 4: Platform webhooks & idempotency ────────────────────────────────
+
+model WebhookEvent {
+  id            String        @id @default(cuid())
+  platform      String        // "shopify" | "woocommerce"
+  eventType     String        // "orders/create" | "orders/updated" etc.
+  externalId    String        // platform order/event ID
+  idempotencyKey String       @unique
+  payload       Json          // raw (sanitized) payload
+  status        WebhookStatus @default(received)
+  processedAt   DateTime?
+  errorMessage  String?
+  retries       Int           @default(0)
+  createdAt     DateTime      @default(now())
+
+  @@index([platform, externalId])
+  @@index([status])
+  @@index([idempotencyKey])
+}
+
+model PlatformWriteback {
+  id          String   @id @default(cuid())
+  orderId     String
+  platform    String
+  action      String   // "tag" | "note" | "metafield"
+  payload     Json
+  status      String   @default("pending")
+  attempts    Int      @default(0)
+  error       String?
+  createdAt   DateTime @default(now())
+
+  @@index([orderId])
+  @@index([status])
+}
+
+// ─── Sprint 4: PII encryption metadata ───────────────────────────────────────
+
+model EncryptionKeyVersion {
+  id        String   @id @default(cuid())
+  version   Int      @unique
+  algorithm String   @default("aes-256-gcm")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  retiredAt DateTime?
+}
+
+// ─── Sprint 4: Retention tracking ────────────────────────────────────────────
+
+model RetentionRun {
+  id           String   @id @default(cuid())
+  policy       String   // "90d" | "180d"
+  recordsFound Int
+  recordsPurged Int
+  dryRun       Boolean  @default(true)
+  ranBy        String
+  createdAt    DateTime @default(now())
+}
+
+// ─── Sprint 4: Rules experiments ─────────────────────────────────────────────
+
+model RulesExperiment {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  controlId     String   // RulesVersion id
+  treatmentId   String   // RulesVersion id
+  rolloutPct    Int      @default(0)  // 0-100
+  status        ExperimentStatus @default(draft)
+  createdBy     String
+  startedAt     DateTime?
+  endedAt       DateTime?
+  createdAt     DateTime @default(now())
+
+  assignments   ExperimentAssignment[]
+
+  @@index([status])
+}
+
+model ExperimentAssignment {
+  id           String   @id @default(cuid())
+  experimentId String
+  orderId      String
+  variant      String   // "control" | "treatment"
+  rulesVersionId String
+  score        Int?
+  decision     String?
+  createdAt    DateTime @default(now())
+
+  experiment   RulesExperiment @relation(fields: [experimentId], references: [id])
+
+  @@index([experimentId])
+  @@index([orderId])
+}
+
+// ─── Sprint 4: Enums ──────────────────────────────────────────────────────────
+
+enum WebhookStatus {
+  received
+  processing
+  processed
+  failed
+  skipped
+}
+
+enum ExperimentStatus {
+  draft
+  running
+  paused
+  completed
+  archived
+}
