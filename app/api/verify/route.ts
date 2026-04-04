@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ZodError } from "zod";
 import { OrderPayloadSchema } from "@/lib/schemas";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
@@ -43,6 +44,8 @@ export async function POST(req: NextRequest) {
   try {
     const shippingAddr = (order.shippingAddress ?? order.billingAddress) as typeof order.billingAddress;
 
+    console.log("verify:start", { requestId, email: order.contact.email });
+
     // Run all integration checks in parallel with retries
     const [addressResult, phoneResult, emailResult, paymentResult, ipResult] =
       await Promise.all([
@@ -68,6 +71,8 @@ export async function POST(req: NextRequest) {
         ),
       ]);
 
+    console.log("verify:signals_collected", { requestId, score: "pending" });
+
     // Run deterministic risk engine
     const risk = runRiskEngine({
       address: addressResult,
@@ -83,7 +88,10 @@ export async function POST(req: NextRequest) {
       reasons: risk.reasons,
     };
 
+    console.log("verify:risk_computed", { requestId, score: risk.score, decision: risk.decision });
+
     // Persist to database
+    console.log("verify:db_write_start", { requestId });
     const dbOrder = await db.order.create({
       data: {
         customerName: `${order.customer.firstName} ${order.customer.lastName}`,
@@ -128,6 +136,8 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    console.log("verify:db_order_created", { requestId, orderId: dbOrder.id });
+
     await writeAuditLog({
       orderId: dbOrder.id,
       actor: "system",
@@ -159,9 +169,18 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err) {
-    logger.error("Verification failed", { requestId, error: String(err) });
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error("Verification failed", { requestId, error: message });
+
+    if (err instanceof ZodError) {
+      return NextResponse.json(
+        { error: "Invalid request payload", issues: err.flatten() },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Verification failed — please try again" },
+      { error: message },
       { status: 500 }
     );
   }

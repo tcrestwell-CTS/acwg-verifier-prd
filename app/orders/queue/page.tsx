@@ -3,10 +3,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { QueueTable } from "@/components/QueueTable";
 import { LoadingPage } from "@/components/ui/LoadingSpinner";
-import type { OrderRecord } from "@/lib/schemas";
+// Use any here — the list API returns a flattened shape handled inside QueueTable
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 
 export default function QueuePage() {
-  const { data: orders, isLoading, error } = useQuery<OrderRecord[]>({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: orders, isLoading, error } = useQuery<any[]>({
     queryKey: ["orders"],
     queryFn: async () => {
       const res = await fetch("/api/orders");

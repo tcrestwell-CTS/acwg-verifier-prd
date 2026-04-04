@@ -10,60 +10,83 @@ import { clsx } from "clsx";
 import { ToastProvider } from "@/components/ui/Toast";
 
 const navItems = [
-  { href: "/orders/new", label: "New Order" },
-  { href: "/orders/queue", label: "Review Queue" },
+  { href: "/orders/new",     label: "New Order" },
+  { href: "/orders/queue",   label: "Review Queue" },
 ];
 
-function NavBar() {
-  const pathname = usePathname();
-  return (
-    <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14">
-          <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center">
-                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.955 11.955 0 013 10c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.75h-.152c-3.196 0-6.1-1.249-8.25-3.286z" />
-                </svg>
-              </div>
-              <span className="font-semibold text-slate-900 text-sm">ACWG Verifier</span>
-            </Link>
-            <nav className="flex items-center gap-1">
-              {navItems.map((item) => (
-                <Link key={item.href} href={item.href} className={clsx(
-                  "px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
-                  pathname === item.href || pathname.startsWith(item.href.split("/").slice(0, 3).join("/"))
-                    ? "bg-brand-50 text-brand-700"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                )}>
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          </div>
-          <span className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-md font-mono">Live API</span>
-        </div>
-      </div>
-    </header>
-  );
-}
+const adminItems = [
+  { href: "/admin/rules",    label: "Rules" },
+  { href: "/admin/reports",  label: "Reports" },
+  { href: "/admin/chargebacks", label: "Chargebacks" },
+];
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
   }));
+  const pathname = usePathname();
 
   return (
     <html lang="en">
       <head>
-        <title>ACWG Verifier</title>
-        <meta name="description" content="Sales Rep Validation Portal" />
+        <title>ACWG Verifier — American Carpet Wholesalers</title>
+        <meta name="description" content="Sales Rep Fraud Verification Portal — American Carpet Wholesalers of Georgia" />
       </head>
       <body>
         <QueryClientProvider client={queryClient}>
           <ToastProvider>
-            <NavBar />
+            {/* Header */}
+            <header className="sticky top-0 z-40 shadow-md" style={{ background: "linear-gradient(135deg, #cc1111 0%, #991b1b 50%, #1e3a8a 100%)" }}>
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between h-16">
+                  {/* Logo */}
+                  <Link href="/" className="flex items-center gap-3 flex-shrink-0">
+                    <div className="w-10 h-10 flex items-center justify-center">
+                      <svg viewBox="0 0 40 40" className="w-10 h-10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="20" cy="20" r="20" fill="white" fillOpacity="0.15" />
+                        <polygon points="20,6 23.5,16 34,16 25.5,22 28.5,33 20,27 11.5,33 14.5,22 6,16 16.5,16" fill="white" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-white font-bold text-sm leading-tight tracking-wide">AMERICAN CARPET WHOLESALERS</p>
+                      <p className="text-red-200 text-xs font-medium tracking-wider">FRAUD VERIFICATION PORTAL</p>
+                    </div>
+                  </Link>
+
+                  {/* Main nav */}
+                  <nav className="flex items-center gap-1">
+                    {navItems.map((item) => (
+                      <Link key={item.href} href={item.href} className={clsx(
+                        "px-3 py-2 rounded-md text-sm font-semibold transition-all",
+                        pathname.startsWith(item.href)
+                          ? "bg-white text-red-700 shadow"
+                          : "text-white hover:bg-white/20"
+                      )}>
+                        {item.label}
+                      </Link>
+                    ))}
+                    <span className="text-white/30 mx-1">|</span>
+                    {adminItems.map((item) => (
+                      <Link key={item.href} href={item.href} className={clsx(
+                        "px-3 py-2 rounded-md text-xs font-semibold transition-all",
+                        pathname.startsWith(item.href)
+                          ? "bg-white/90 text-navy-700 shadow"
+                          : "text-white/70 hover:bg-white/20 hover:text-white"
+                      )}>
+                        {item.label}
+                      </Link>
+                    ))}
+                  </nav>
+
+                  {/* Live badge */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                    <span className="text-xs text-green-200 font-medium">Live</span>
+                  </div>
+                </div>
+              </div>
+            </header>
+
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               {children}
             </main>

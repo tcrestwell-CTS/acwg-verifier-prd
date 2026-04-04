@@ -32,11 +32,15 @@ export default function NewOrderPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
+      const json = await res.json().catch(() => null);
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error ?? "Verification failed");
+        throw new Error(
+          (json as { error?: string; message?: string } | null)?.error ??
+          (json as { error?: string; message?: string } | null)?.message ??
+          `Verification failed (${res.status})`
+        );
       }
-      return res.json();
+      return json;
     },
     onSuccess: (data, variables) => {
       setOrderId(data.id);
