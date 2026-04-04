@@ -87,14 +87,7 @@ function derivePlaybook(
     });
   }
 
-  // ── Address not deliverable ─────────────────────────────────────────────
-  if (!address.deliverable) {
-    actions.push({
-      priority: "required",
-      action: "Verify shipping address — USPS cannot confirm delivery",
-      script: `"Our system couldn't confirm that address for delivery. Can you double-check the street address, including any apartment or suite number?"`,
-    });
-  }
+  // USPS DPV check not used — ACWG uses third-party delivery
 
   // ── First-time customer with high order ─────────────────────────────────
   if (overall_.score && overall_.score > 20) {
