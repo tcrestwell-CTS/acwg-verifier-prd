@@ -2,7 +2,8 @@
 
 import { clsx } from "clsx";
 import type { VerificationResult } from "@/lib/schemas";
-import { scoreLabel, scoreBg, scoreColor } from "@/lib/risk";
+import { scoreBg, scoreColor } from "@/lib/risk";
+import { scoreLabel } from "@/lib/format";
 import { DecisionBadge } from "./ui/Badge";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
 

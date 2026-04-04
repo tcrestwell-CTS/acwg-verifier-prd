@@ -8,7 +8,7 @@ import { useState } from "react";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
 
 interface OrderFormProps {
-  onSubmit: (data: OrderPayload) => Promise<void>;
+  onSubmit: (data: OrderPayload) => Promise<unknown>;
   isLoading: boolean;
 }
 

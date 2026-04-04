@@ -89,7 +89,7 @@ function generateVerification(order: OrderPayload): VerificationResult {
       binType: "credit",
       reasons: [
         `AVS: ${avsResult === "Y" ? "Full match" : avsResult === "P" ? "Partial match" : "No match"}`,
-        `CVV: ${cvvResult === "M" ? "Match" : cvvResult === "N" ? "No match" : "Not provided"}`,
+        `CVV: ${cvvResult === "M" ? "Match" : "Not provided"}`,
       ],
     },
     ip: {
