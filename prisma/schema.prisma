@@ -198,11 +198,61 @@ model QueueJob {
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
-enum DecisionStatus { approved queued denied }
-enum RulesStatus    { draft published archived }
-enum DocRequestType { government_id proof_of_address bank_statement selfie other }
-enum DocStatus      { pending uploaded reviewing accepted rejected }
-enum OtpStatus      { pending verified failed expired }
-enum StepUpStatus   { initiated challenged authenticated declined failed }
-enum ChargebackStatus { open investigating won lost resolved }
-enum JobStatus      { pending running completed failed dead_letter }
+enum DecisionStatus {
+  approved
+  queued
+  denied
+}
+
+enum RulesStatus {
+  draft
+  published
+  archived
+}
+
+enum DocRequestType {
+  government_id
+  proof_of_address
+  bank_statement
+  selfie
+  other
+}
+
+enum DocStatus {
+  pending
+  uploaded
+  reviewing
+  accepted
+  rejected
+}
+
+enum OtpStatus {
+  pending
+  verified
+  failed
+  expired
+}
+
+enum StepUpStatus {
+  initiated
+  challenged
+  authenticated
+  declined
+  failed
+}
+
+enum ChargebackStatus {
+  open
+  investigating
+  won
+  lost
+  resolved
+}
+
+enum JobStatus {
+  pending
+  running
+  completed
+  failed
+  dead_letter
+}
