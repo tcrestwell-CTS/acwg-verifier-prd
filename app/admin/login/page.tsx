@@ -33,19 +33,17 @@ function LoginForm() {
     setError("");
     setLoading(true);
 
-    const result = await signIn("credentials", {
+    // Use NextAuth's callbackUrl so the cookie is set before redirect
+    await signIn("credentials", {
       email: email.toLowerCase(),
       password,
-      redirect: false,
+      callbackUrl: "/admin/rules",
+      redirect: true,
     });
 
+    // If we reach here, sign-in failed
     setLoading(false);
-
-    if (result?.error) {
-      setError("Invalid email or password.");
-    } else {
-      router.replace("/admin/rules");
-    }
+    setError("Invalid email or password.");
   };
 
   if (status === "loading") {
