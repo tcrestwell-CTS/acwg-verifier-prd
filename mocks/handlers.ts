@@ -18,8 +18,8 @@ function generateVerification(order: OrderPayload): VerificationResult {
   const billing = order.billingAddress;
   const shipping = order.shippingAddress;
   const sameCity =
-    billing.city.toLowerCase() === shipping.city.toLowerCase() &&
-    billing.state === shipping.state;
+    (shipping.city ?? "").toLowerCase() === billing.city.toLowerCase() &&
+    (shipping.state ?? "") === billing.state;
   const distanceKm = sameCity ? 0 : Math.floor(Math.random() * 3500);
   const dpv: "Y" | "N" | "S" | "D" | "U" =
     shipping.line1.toLowerCase().includes("fake") ? "N" : "Y";
