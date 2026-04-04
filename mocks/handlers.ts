@@ -22,7 +22,7 @@ function generateVerification(order: OrderPayload): VerificationResult {
     (shipping.state ?? "") === billing.state;
   const distanceKm = sameCity ? 0 : Math.floor(Math.random() * 3500);
   const dpv: "Y" | "N" | "S" | "D" | "U" =
-    shipping.line1.toLowerCase().includes("fake") ? "N" : "Y";
+    (shipping.line1 ?? "").toLowerCase().includes("fake") ? "N" : "Y";
 
   if (dpv !== "Y") reasons.push("Address not found in delivery database");
   if (distanceKm > 500)
@@ -55,11 +55,11 @@ function generateVerification(order: OrderPayload): VerificationResult {
       normalized:
         dpv === "Y"
           ? {
-              line1: shipping.line1.toUpperCase(),
-              city: shipping.city.toUpperCase(),
-              state: shipping.state.toUpperCase(),
-              postalCode: shipping.postalCode,
-              country: shipping.country ?? "US",
+              line1: (shipping.line1 ?? "").toUpperCase(),
+              city: (shipping.city ?? "").toUpperCase(),
+              state: (shipping.state ?? "").toUpperCase(),
+              postalCode: (shipping.postalCode ?? ""),
+              country: (shipping.country ?? "US") ?? "US",
             }
           : undefined,
       reasons,
