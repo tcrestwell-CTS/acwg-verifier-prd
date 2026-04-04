@@ -12,6 +12,7 @@ import { checkEmail } from "@/lib/integrations/email";
 import { checkPayment } from "@/lib/integrations/payment";
 import { checkIp } from "@/lib/integrations/ip";
 import { runRiskEngine } from "@/lib/services/riskEngine";
+import { checkVelocity } from "@/lib/services/velocityService";
 import { randomUUID } from "crypto";
 
 export async function POST(req: NextRequest) {
@@ -73,19 +74,42 @@ export async function POST(req: NextRequest) {
 
     console.log("verify:signals_collected", { requestId, score: "pending" });
 
-    // Run deterministic risk engine
-    const risk = runRiskEngine({
-      address: addressResult,
-      phone: phoneResult,
-      email: emailResult,
-      payment: paymentResult,
-      ip: ipResult,
+    // Velocity check
+    const velocity = await checkVelocity({
+      email: order.contact.email,
+      phone: order.contact.phone,
+      cardLast4: order.paymentMeta.cardLast4,
+      bin: order.paymentMeta.bin,
+      shippingAddress: shippingAddr,
+      orderTotal: order.items.reduce((sum, i) => sum + i.qty * i.price, 0),
     });
+
+    // Run deterministic risk engine
+    const risk = runRiskEngine(
+      {
+        address: addressResult,
+        phone: phoneResult,
+        email: emailResult,
+        payment: paymentResult,
+        ip: ipResult,
+      },
+      undefined, // use default rules config
+      velocity,
+      shippingAddr
+    );
 
     const overall = {
       score: risk.score,
       decision: risk.decision,
       reasons: risk.reasons,
+      hardStop: risk.hardStop,
+      requiresOtp: risk.requiresOtp,
+      requiresDocVerification: risk.requiresDocVerification,
+      velocity: {
+        isReturningCustomer: velocity.isReturningCustomer,
+        priorOrderCount: velocity.priorOrderCount,
+        cardOrderCount24h: velocity.cardOrderCount24h,
+      },
     };
 
     console.log("verify:risk_computed", { requestId, score: risk.score, decision: risk.decision });
