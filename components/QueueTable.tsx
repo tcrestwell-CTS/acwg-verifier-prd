@@ -28,22 +28,21 @@ export function QueueTable({ orders }: QueueTableProps) {
   const filtered = useMemo(() => {
     return orders
       .filter((o) => statusFilter === "all" || o.currentStatus === statusFilter)
-      .filter(
-        (o) =>
-          o.verification.overall.score >= minScore &&
-          o.verification.overall.score <= maxScore
-      )
+      .filter((o) => {
+        const score = o.overall?.score ?? 0;
+        return score >= minScore && score <= maxScore;
+      })
       .filter((o) => {
         if (!reasonFilter) return true;
-        return o.verification.overall.reasons.some((r) =>
+        return (o.overall?.reasons ?? []).some((r: string) =>
           r.toLowerCase().includes(reasonFilter.toLowerCase())
         );
       })
       .sort((a, b) => {
         let av: number, bv: number;
         if (sortBy === "score") {
-          av = a.verification.overall.score;
-          bv = b.verification.overall.score;
+          av = a.overall?.score ?? 0;
+          bv = b.overall?.score ?? 0;
         } else {
           av = new Date(a.createdAt).getTime();
           bv = new Date(b.createdAt).getTime();
@@ -185,7 +184,9 @@ export function QueueTable({ orders }: QueueTableProps) {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {paginated.map((order) => {
-                  const { score, decision, reasons } = order.verification.overall;
+                  const score = order.overall?.score ?? 0;
+                  const decision = order.overall?.decision ?? order.currentStatus;
+                  const reasons: string[] = order.overall?.reasons ?? [];
                   return (
                     <tr
                       key={order.id}
