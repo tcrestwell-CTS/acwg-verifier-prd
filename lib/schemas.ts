@@ -43,7 +43,7 @@ export const OrderPayloadSchema = z.object({
       ),
   }),
   billingAddress: AddressSchema,
-  shippingAddress: AddressSchema,
+  shippingAddress: AddressSchema.partial().or(AddressSchema),
   items: z.array(OrderItemSchema).min(1, "At least one item is required"),
   paymentMeta: z.object({
     cardLast4: z
