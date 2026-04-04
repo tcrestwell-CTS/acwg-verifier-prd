@@ -57,7 +57,7 @@ export function ClaudeSummary({ order, verification }: ClaudeSummaryProps) {
             </svg>
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-900">Claude Assist</p>
+            <p className="text-sm font-semibold text-slate-900">Regina Assist</p>
             <p className="text-xs text-slate-400">AI-generated summaries based on verification results</p>
           </div>
         </div>
