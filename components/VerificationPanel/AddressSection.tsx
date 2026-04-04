@@ -10,9 +10,7 @@ export function AddressSection({ data }: Props) {
     <div className="space-y-3">
       <div className="flex items-center gap-2 flex-wrap">
         <DpvBadge dpv={data.dpv} />
-        <Badge variant={data.deliverable ? "pass" : "fail"}>
-          {data.deliverable ? "Deliverable" : "Not Deliverable"}
-        </Badge>
+        <Badge variant="neutral">3rd Party Delivery</Badge>
         <Badge variant={data.residential ? "neutral" : "info"}>
           {data.residential ? "Residential" : "Commercial"}
         </Badge>
