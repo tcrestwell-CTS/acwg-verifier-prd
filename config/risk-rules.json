@@ -1,0 +1,81 @@
+{
+  "thresholds": {
+    "approved": 25,
+    "queued": 60
+  },
+  "rules": [
+    {
+      "id": "address_dpv",
+      "description": "Address not fully deliverable (DPV non-Y)",
+      "points": 20
+    },
+    {
+      "id": "address_distance",
+      "description": "Billing/shipping distance exceeds 500 km",
+      "points": 15,
+      "distanceThresholdKm": 500
+    },
+    {
+      "id": "address_apartment_needed",
+      "description": "Apartment or unit number missing from address",
+      "points": 5
+    },
+    {
+      "id": "phone_voip",
+      "description": "Phone number is VoIP — harder to verify ownership",
+      "points": 10
+    },
+    {
+      "id": "phone_inactive",
+      "description": "Phone number appears inactive or disconnected",
+      "points": 10
+    },
+    {
+      "id": "phone_high_risk_score",
+      "description": "Phone carrier risk score elevated (>70)",
+      "points": 10,
+      "riskScoreThreshold": 70
+    },
+    {
+      "id": "email_disposable",
+      "description": "Email address uses a disposable/throwaway domain",
+      "points": 15
+    },
+    {
+      "id": "email_no_mx",
+      "description": "Email domain has no valid MX records",
+      "points": 10
+    },
+    {
+      "id": "email_high_domain_risk",
+      "description": "Email domain flagged as high risk",
+      "points": 10
+    },
+    {
+      "id": "payment_avs_fail",
+      "description": "AVS mismatch — billing address doesn't match card records",
+      "points": 25
+    },
+    {
+      "id": "payment_cvv_fail",
+      "description": "CVV check failed",
+      "points": 10
+    },
+    {
+      "id": "payment_prepaid",
+      "description": "Card BIN indicates a prepaid card — higher chargeback risk",
+      "points": 10
+    },
+    {
+      "id": "ip_proxy_vpn",
+      "description": "IP address routes through a proxy or VPN",
+      "points": 15
+    },
+    {
+      "id": "ip_distance",
+      "description": "IP geolocation is far from shipping address (>800 km)",
+      "points": 10,
+      "distanceThresholdKm": 800
+    }
+  ]
+}

@@ -17,94 +17,6 @@ function FieldError({ message }: { message?: string }) {
   return <p className="form-error" role="alert">{message}</p>;
 }
 
-function AddressFields({
-  prefix,
-  register,
-  errors,
-  label,
-}: {
-  prefix: "billingAddress" | "shippingAddress";
-  register: ReturnType<typeof useForm<OrderPayload>>["register"];
-  errors: Record<string, unknown>;
-  label: string;
-}) {
-  const e = (errors[prefix] as Record<string, { message?: string }>) ?? {};
-  return (
-    <div>
-      <h3 className="section-header">{label}</h3>
-      <div className="grid grid-cols-1 gap-4">
-        <div>
-          <label className="form-label" htmlFor={`${prefix}.line1`}>
-            Street Address *
-          </label>
-          <input
-            id={`${prefix}.line1`}
-            className="form-input"
-            placeholder="123 Main St"
-            {...register(`${prefix}.line1`)}
-          />
-          <FieldError message={e.line1?.message} />
-        </div>
-        <div>
-          <label className="form-label" htmlFor={`${prefix}.line2`}>
-            Apt / Suite
-          </label>
-          <input
-            id={`${prefix}.line2`}
-            className="form-input"
-            placeholder="Apt 4B"
-            {...register(`${prefix}.line2`)}
-          />
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="col-span-1">
-            <label className="form-label" htmlFor={`${prefix}.city`}>
-              City *
-            </label>
-            <input
-              id={`${prefix}.city`}
-              className="form-input"
-              placeholder="Atlanta"
-              {...register(`${prefix}.city`)}
-            />
-            <FieldError message={e.city?.message} />
-          </div>
-          <div>
-            <label className="form-label" htmlFor={`${prefix}.state`}>
-              State *
-            </label>
-            <input
-              id={`${prefix}.state`}
-              className="form-input uppercase"
-              placeholder="GA"
-              maxLength={2}
-              {...register(`${prefix}.state`, {
-                setValueAs: (v) => normalizeState(v),
-              })}
-            />
-            <FieldError message={e.state?.message} />
-          </div>
-          <div>
-            <label className="form-label" htmlFor={`${prefix}.postalCode`}>
-              ZIP *
-            </label>
-            <input
-              id={`${prefix}.postalCode`}
-              className="form-input"
-              placeholder="30301"
-              maxLength={10}
-              {...register(`${prefix}.postalCode`, {
-                setValueAs: (v) => normalizeZip(v),
-              })}
-            />
-            <FieldError message={e.postalCode?.message} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
   const [sameAddress, setSameAddress] = useState(true);
   const [panWarning, setPanWarning] = useState(false);
@@ -119,7 +31,7 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
   } = useForm<OrderPayload>({
     resolver: zodResolver(OrderPayloadSchema),
     defaultValues: {
-      items: [{ sku: "", name: "", qty: 1, price: 0 }],
+      items: [{ sku: "", name: "", qty: 1, price: "" as unknown as number }],
       paymentMeta: {},
       context: {},
       billingAddress: { country: "US" },
@@ -129,26 +41,23 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
 
+  // Mirror a billing field change into shipping when same-as-billing is on
+  const mirrorToShipping = (field: keyof OrderPayload["billingAddress"], value: string) => {
+    if (sameAddress) {
+      setValue(`shippingAddress.${field}` as never, value as never, { shouldValidate: false });
+    }
+  };
+
   const handleSameAddressToggle = (checked: boolean) => {
     setSameAddress(checked);
     if (checked) {
       const billing = getValues("billingAddress");
-      setValue("shippingAddress", billing);
-    }
-  };
-
-  const handleCardLast4Change = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    // Detect potential full PAN entry
-    if (val.length > 4 || /\d{13,}/.test(val)) {
-      setPanWarning(true);
-    } else {
-      setPanWarning(false);
+      setValue("shippingAddress", { ...billing }, { shouldValidate: false });
     }
   };
 
   const submit = async (data: OrderPayload) => {
-    const normalized = {
+    const normalized: OrderPayload = {
       ...data,
       contact: {
         ...data.contact,
@@ -159,86 +68,100 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
     await onSubmit(normalized);
   };
 
-  const billingErrors = errors.billingAddress as Record<string, { message?: string }> | undefined;
-  const shippingErrors = errors.shippingAddress as Record<string, { message?: string }> | undefined;
+  const be = errors.billingAddress as Record<string, { message?: string }> | undefined;
+  const se = errors.shippingAddress as Record<string, { message?: string }> | undefined;
 
   return (
-    <form onSubmit={handleSubmit(submit)} noValidate className="space-y-8">
-      {/* Customer Info */}
+    <form
+      onSubmit={handleSubmit(submit, (errs) => {
+        console.error("Form errors:", JSON.stringify(errs, null, 2));
+      })}
+      noValidate
+      className="space-y-8"
+    >
+      {/* Customer */}
       <div className="card p-6">
         <h2 className="section-header">Customer Information</h2>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="form-label" htmlFor="firstName">
-              First Name *
-            </label>
-            <input
-              id="firstName"
-              className="form-input"
-              placeholder="Sarah"
-              {...register("customer.firstName")}
-            />
+            <label className="form-label" htmlFor="firstName">First Name *</label>
+            <input id="firstName" className="form-input" placeholder="Timothy" {...register("customer.firstName")} />
             <FieldError message={errors.customer?.firstName?.message} />
           </div>
           <div>
-            <label className="form-label" htmlFor="lastName">
-              Last Name *
-            </label>
-            <input
-              id="lastName"
-              className="form-input"
-              placeholder="Mitchell"
-              {...register("customer.lastName")}
-            />
+            <label className="form-label" htmlFor="lastName">Last Name *</label>
+            <input id="lastName" className="form-input" placeholder="Crestwell" {...register("customer.lastName")} />
             <FieldError message={errors.customer?.lastName?.message} />
           </div>
         </div>
       </div>
 
-      {/* Contact Info */}
+      {/* Contact */}
       <div className="card p-6">
         <h2 className="section-header">Contact Information</h2>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="form-label" htmlFor="email">
-              Email Address *
-            </label>
-            <input
-              id="email"
-              type="email"
-              className="form-input"
-              placeholder="sarah@example.com"
-              {...register("contact.email")}
-            />
+            <label className="form-label" htmlFor="email">Email Address *</label>
+            <input id="email" type="email" className="form-input" placeholder="tim@crestwellgetaways.com" {...register("contact.email")} />
             <FieldError message={errors.contact?.email?.message} />
           </div>
           <div>
-            <label className="form-label" htmlFor="phone">
-              Phone Number *
-            </label>
-            <input
-              id="phone"
-              type="tel"
-              className="form-input"
-              placeholder="(404) 555-0182"
-              {...register("contact.phone")}
-            />
+            <label className="form-label" htmlFor="phone">Phone Number *</label>
+            <input id="phone" type="tel" className="form-input" placeholder="(423) 555-0100" {...register("contact.phone")} />
             <FieldError message={errors.contact?.phone?.message} />
-            <p className="text-xs text-slate-400 mt-1">
-              Will be normalized to E.164 format
-            </p>
+            <p className="text-xs text-slate-400 mt-1">Will be normalized to E.164 format</p>
           </div>
         </div>
       </div>
 
       {/* Billing Address */}
       <div className="card p-6">
-        <AddressFields
-          prefix="billingAddress"
-          register={register}
-          errors={{ billingAddress: billingErrors }}
-          label="Billing Address"
-        />
+        <h2 className="section-header">Billing Address</h2>
+        <div className="grid grid-cols-1 gap-4">
+          <div>
+            <label className="form-label" htmlFor="bill-line1">Street Address *</label>
+            <input id="bill-line1" className="form-input" placeholder="105 Pine Hill Drive"
+              {...register("billingAddress.line1", {
+                onChange: (e) => mirrorToShipping("line1", e.target.value),
+              })} />
+            <FieldError message={be?.line1?.message} />
+          </div>
+          <div>
+            <label className="form-label" htmlFor="bill-line2">Apt / Suite</label>
+            <input id="bill-line2" className="form-input" placeholder="Apt 4B"
+              {...register("billingAddress.line2", {
+                onChange: (e) => mirrorToShipping("line2", e.target.value),
+              })} />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-1">
+              <label className="form-label" htmlFor="bill-city">City *</label>
+              <input id="bill-city" className="form-input" placeholder="Calhoun"
+                {...register("billingAddress.city", {
+                  onChange: (e) => mirrorToShipping("city", e.target.value),
+                })} />
+              <FieldError message={be?.city?.message} />
+            </div>
+            <div>
+              <label className="form-label" htmlFor="bill-state">State *</label>
+              <input id="bill-state" className="form-input uppercase" placeholder="GA" maxLength={2}
+                {...register("billingAddress.state", {
+                  setValueAs: (v) => normalizeState(v),
+                  onChange: (e) => mirrorToShipping("state", normalizeState(e.target.value)),
+                })} />
+              <FieldError message={be?.state?.message} />
+            </div>
+            <div>
+              <label className="form-label" htmlFor="bill-zip">ZIP *</label>
+              <input id="bill-zip" className="form-input" placeholder="30701" maxLength={10}
+                {...register("billingAddress.postalCode", {
+                  setValueAs: (v) => normalizeZip(v),
+                  onChange: (e) => mirrorToShipping("postalCode", normalizeZip(e.target.value)),
+                })} />
+              <FieldError message={be?.postalCode?.message} />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Shipping Address */}
@@ -255,18 +178,39 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
             Same as billing
           </label>
         </div>
-        {!sameAddress && (
-          <AddressFields
-            prefix="shippingAddress"
-            register={register}
-            errors={{ shippingAddress: shippingErrors }}
-            label="Shipping Address"
-          />
-        )}
-        {sameAddress && (
-          <p className="text-sm text-slate-500 italic">
-            Shipping address will match billing address.
-          </p>
+        {sameAddress ? (
+          <p className="text-sm text-slate-500 italic">Shipping address will match billing address.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <label className="form-label" htmlFor="ship-line1">Street Address *</label>
+              <input id="ship-line1" className="form-input" placeholder="123 Main St" {...register("shippingAddress.line1")} />
+              <FieldError message={se?.line1?.message} />
+            </div>
+            <div>
+              <label className="form-label" htmlFor="ship-line2">Apt / Suite</label>
+              <input id="ship-line2" className="form-input" placeholder="Apt 4B" {...register("shippingAddress.line2")} />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-1">
+                <label className="form-label" htmlFor="ship-city">City *</label>
+                <input id="ship-city" className="form-input" {...register("shippingAddress.city")} />
+                <FieldError message={se?.city?.message} />
+              </div>
+              <div>
+                <label className="form-label" htmlFor="ship-state">State *</label>
+                <input id="ship-state" className="form-input uppercase" maxLength={2}
+                  {...register("shippingAddress.state", { setValueAs: normalizeState })} />
+                <FieldError message={se?.state?.message} />
+              </div>
+              <div>
+                <label className="form-label" htmlFor="ship-zip">ZIP *</label>
+                <input id="ship-zip" className="form-input" maxLength={10}
+                  {...register("shippingAddress.postalCode", { setValueAs: normalizeZip })} />
+                <FieldError message={se?.postalCode?.message} />
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
@@ -274,79 +218,36 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
       <div className="card p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="section-header mb-0">Order Items</h2>
-          <button
-            type="button"
-            onClick={() => append({ sku: "", name: "", qty: 1, price: 0 })}
-            className="btn-secondary text-xs"
-          >
+          <button type="button" onClick={() => append({ sku: "", name: "", qty: 1, price: "" as unknown as number })} className="btn-secondary text-xs">
             + Add Item
           </button>
         </div>
         <div className="space-y-3">
           {fields.map((field, idx) => (
-            <div
-              key={field.id}
-              className="grid grid-cols-12 gap-3 items-start p-3 bg-slate-50 rounded-lg"
-            >
+            <div key={field.id} className="grid grid-cols-12 gap-3 items-start p-3 bg-slate-50 rounded-lg">
               <div className="col-span-2">
-                <label className="form-label text-xs" htmlFor={`sku-${idx}`}>
-                  SKU
-                </label>
-                <input
-                  id={`sku-${idx}`}
-                  className="form-input text-xs"
-                  placeholder="TRV-001"
-                  {...register(`items.${idx}.sku`)}
-                />
+                <label className="form-label text-xs" htmlFor={`sku-${idx}`}>SKU</label>
+                <input id={`sku-${idx}`} className="form-input text-xs" placeholder="TRV-001" {...register(`items.${idx}.sku`)} />
                 <FieldError message={errors.items?.[idx]?.sku?.message} />
               </div>
               <div className="col-span-5">
-                <label className="form-label text-xs" htmlFor={`name-${idx}`}>
-                  Description
-                </label>
-                <input
-                  id={`name-${idx}`}
-                  className="form-input text-xs"
-                  placeholder="Caribbean Cruise Deposit"
-                  {...register(`items.${idx}.name`)}
-                />
+                <label className="form-label text-xs" htmlFor={`name-${idx}`}>Description</label>
+                <input id={`name-${idx}`} className="form-input text-xs" placeholder="Caribbean Cruise Deposit" {...register(`items.${idx}.name`)} />
                 <FieldError message={errors.items?.[idx]?.name?.message} />
               </div>
               <div className="col-span-2">
-                <label className="form-label text-xs" htmlFor={`qty-${idx}`}>
-                  Qty
-                </label>
-                <input
-                  id={`qty-${idx}`}
-                  type="number"
-                  min={1}
-                  className="form-input text-xs"
-                  {...register(`items.${idx}.qty`, { valueAsNumber: true })}
-                />
+                <label className="form-label text-xs" htmlFor={`qty-${idx}`}>Qty</label>
+                <input id={`qty-${idx}`} type="number" min={1} className="form-input text-xs" {...register(`items.${idx}.qty`, { valueAsNumber: true })} />
                 <FieldError message={errors.items?.[idx]?.qty?.message} />
               </div>
               <div className="col-span-2">
-                <label className="form-label text-xs" htmlFor={`price-${idx}`}>
-                  Price ($)
-                </label>
-                <input
-                  id={`price-${idx}`}
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  className="form-input text-xs"
-                  {...register(`items.${idx}.price`, { valueAsNumber: true })}
-                />
+                <label className="form-label text-xs" htmlFor={`price-${idx}`}>Price ($)</label>
+                <input id={`price-${idx}`} type="number" min={0.01} step={0.01} className="form-input text-xs" {...register(`items.${idx}.price`, { valueAsNumber: true })} />
                 <FieldError message={errors.items?.[idx]?.price?.message} />
               </div>
               <div className="col-span-1 pt-6">
                 {fields.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => remove(idx)}
-                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    aria-label="Remove item"
-                  >
+                  <button type="button" onClick={() => remove(idx)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" aria-label="Remove item">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -356,63 +257,35 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
             </div>
           ))}
         </div>
-        {errors.items && typeof errors.items.message === "string" && (
-          <FieldError message={errors.items.message} />
-        )}
       </div>
 
-      {/* Payment Meta */}
+      {/* Payment */}
       <div className="card p-6">
         <h2 className="section-header">Payment Information</h2>
         <p className="text-xs text-slate-500 mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-          ⚠ Do not enter full card numbers. Only last 4 digits and BIN are
-          accepted for fraud signal purposes.
+          ⚠ Do not enter full card numbers. Only last 4 digits and BIN are accepted.
         </p>
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <label className="form-label" htmlFor="cardLast4">
-              Last 4 Digits
-            </label>
-            <input
-              id="cardLast4"
-              className="form-input font-mono"
-              placeholder="4242"
-              maxLength={4}
-              inputMode="numeric"
+            <label className="form-label" htmlFor="cardLast4">Last 4 Digits</label>
+            <input id="cardLast4" className="form-input font-mono" placeholder="4242" maxLength={4} inputMode="numeric"
               {...register("paymentMeta.cardLast4", {
-                onChange: handleCardLast4Change,
-              })}
-            />
-            {panWarning && (
-              <p className="text-xs text-red-600 mt-1 font-medium">
-                ⛔ Do not enter a full card number — last 4 digits only.
-              </p>
-            )}
+                onChange: (e) => {
+                  if (e.target.value.length > 4) setPanWarning(true);
+                  else setPanWarning(false);
+                },
+              })} />
+            {panWarning && <p className="text-xs text-red-600 mt-1 font-medium">⛔ Last 4 digits only — do not enter full card number.</p>}
             <FieldError message={errors.paymentMeta?.cardLast4?.message} />
           </div>
           <div>
-            <label className="form-label" htmlFor="bin">
-              BIN (6 digits)
-            </label>
-            <input
-              id="bin"
-              className="form-input font-mono"
-              placeholder="424242"
-              maxLength={6}
-              inputMode="numeric"
-              {...register("paymentMeta.bin")}
-            />
+            <label className="form-label" htmlFor="bin">BIN (6 digits)</label>
+            <input id="bin" className="form-input font-mono" placeholder="424242" maxLength={6} inputMode="numeric" {...register("paymentMeta.bin")} />
             <FieldError message={errors.paymentMeta?.bin?.message} />
           </div>
           <div>
-            <label className="form-label" htmlFor="brand">
-              Card Brand
-            </label>
-            <select
-              id="brand"
-              className="form-input"
-              {...register("paymentMeta.brand")}
-            >
+            <label className="form-label" htmlFor="brand">Card Brand</label>
+            <select id="brand" className="form-input" {...register("paymentMeta.brand")}>
               <option value="">— Select —</option>
               <option value="Visa">Visa</option>
               <option value="Mastercard">Mastercard</option>
@@ -428,42 +301,21 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
         <h2 className="section-header">Session Context (optional)</h2>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="form-label" htmlFor="ip">
-              Customer IP Address
-            </label>
-            <input
-              id="ip"
-              className="form-input font-mono text-sm"
-              placeholder="75.148.22.100"
-              {...register("context.ip")}
-            />
+            <label className="form-label" htmlFor="ip">Customer IP Address</label>
+            <input id="ip" className="form-input font-mono text-sm" placeholder="75.148.22.100" {...register("context.ip")} />
           </div>
           <div>
-            <label className="form-label" htmlFor="userAgent">
-              User Agent
-            </label>
-            <input
-              id="userAgent"
-              className="form-input text-sm"
-              placeholder="Mozilla/5.0…"
-              {...register("context.userAgent")}
-            />
+            <label className="form-label" htmlFor="userAgent">User Agent</label>
+            <input id="userAgent" className="form-input text-sm" placeholder="Mozilla/5.0…" {...register("context.userAgent")} />
           </div>
         </div>
       </div>
 
       {/* Submit */}
       <div className="flex justify-end">
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="btn-primary px-8 py-3 text-base"
-        >
+        <button type="submit" disabled={isLoading} className="btn-primary px-8 py-3 text-base">
           {isLoading ? (
-            <>
-              <LoadingSpinner size="sm" />
-              Running Verification…
-            </>
+            <><LoadingSpinner size="sm" /> Running Verification…</>
           ) : (
             <>
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
