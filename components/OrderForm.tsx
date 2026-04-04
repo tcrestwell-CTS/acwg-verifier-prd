@@ -154,6 +154,7 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
         ...data.contact,
         phone: normalizePhone(data.contact.phone),
       },
+      // Always derive shipping from billing when checked — don't rely on setValue timing
       shippingAddress: sameAddress ? data.billingAddress : data.shippingAddress,
     };
     await onSubmit(normalized);
