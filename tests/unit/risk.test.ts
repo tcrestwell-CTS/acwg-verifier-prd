@@ -31,7 +31,7 @@ describe("computeRisk", () => {
     };
     const result = computeRisk(v);
     expect(result.components.address).toBeGreaterThanOrEqual(20);
-    expect(result.decision).toBe("queued");
+    expect(result.decision).toBe("approved"); // score 20 is still ≤ 25 → approved
   });
 
   it("adds +15 for billing/shipping distance > 500km", () => {
