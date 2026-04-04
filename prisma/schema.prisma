@@ -368,3 +368,25 @@ enum ExperimentStatus {
   completed
   archived
 }
+
+// ─── Admin auth ───────────────────────────────────────────────────────────────
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         AdminRole @default(reviewer)
+  active       Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([email])
+}
+
+enum AdminRole {
+  reviewer   // can view orders, run verification, record decisions
+  admin      // all reviewer permissions + rules, reports, chargebacks
+  superadmin // all admin permissions + user management, retention, experiments
+}
