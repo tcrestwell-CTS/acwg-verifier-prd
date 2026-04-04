@@ -157,3 +157,23 @@ main()
     process.exit(1);
   })
   .finally(() => prisma.$disconnect());
+
+  // ── Default superadmin user ───────────────────────────────────────────────
+  const { hash } = await import("bcryptjs");
+  const defaultPassword = process.env.ADMIN_SEED_PASSWORD ?? "ChangeMe123!";
+  const passwordHash = await hash(defaultPassword, 12);
+
+  await db.adminUser.upsert({
+    where: { email: "admin@acwg.net" },
+    update: {},
+    create: {
+      email: "admin@acwg.net",
+      name: "ACWG Admin",
+      passwordHash,
+      role: "superadmin",
+      active: true,
+    },
+  });
+
+  console.log(`✅ Default admin created: admin@acwg.net / ${defaultPassword}`);
+  console.log("⚠️  Change this password immediately via /api/admin/users");
