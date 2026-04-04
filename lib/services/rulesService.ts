@@ -24,7 +24,7 @@ export async function getPublishedRules(): Promise<RulesConfig> {
     orderBy: { version: "desc" },
   });
   if (!published) return defaultRules as RulesConfig;
-  return published.rules as RulesConfig;
+  return published.rules as unknown as RulesConfig;
 }
 
 // ── List all versions ─────────────────────────────────────────────────────────
@@ -126,7 +126,7 @@ export async function previewRules(opts: {
   if (!version) throw new Error("Rules version not found");
 
   // Run risk engine with the draft rules' thresholds
-  const rulesConfig = version.rules as RulesConfig;
+  const rulesConfig = version.rules as unknown as RulesConfig;
   const result = runRiskEngine(opts.sampleVerification, rulesConfig);
 
   return {
