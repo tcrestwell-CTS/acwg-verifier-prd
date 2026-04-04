@@ -95,13 +95,11 @@ export function runRiskEngine(
 
   // ── Address checks ──────────────────────────────────────────────────────
 
-  if (v.address.dpv !== "Y") {
-    components.address += 20;
-    reasons.push("Address not fully deliverable (DPV non-Y)");
-  }
+  // DPV deliverability not scored — ACWG uses third-party delivery, not USPS
+  // Address is still normalized and distance-checked
   if (v.address.apartmentNeeded) {
     components.address += 5;
-    reasons.push("Apartment or unit number appears missing from address");
+    reasons.push("Apartment or unit number may be missing from address");
   }
 
   // Improved distance scoring
