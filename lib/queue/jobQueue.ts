@@ -80,22 +80,28 @@ async function processNextViaPrisma(type?: string): Promise<boolean> {
 // ── Redis-backed queue (when FEATURE_REDIS_QUEUE=true) ────────────────────────
 
 async function enqueueViaRedis(job: Job): Promise<string> {
-  // Import dynamically so Redis is optional
-  const { createClient } = await import("redis").catch(() => ({ createClient: null }));
-  if (!createClient || !process.env.REDIS_URL) {
-    logger.warn("Redis not available, falling back to Prisma queue");
+  // Redis is optional — fall back to Prisma when not configured
+  if (!process.env.REDIS_URL) {
+    logger.warn("REDIS_URL not set, falling back to Prisma queue");
     return enqueueViaPrisma(job);
   }
 
-  const client = createClient({ url: process.env.REDIS_URL });
-  await client.connect();
+  try {
+    // Dynamic require with webpack ignore comment so it is not bundled
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const redis = require(/* webpackIgnore: true */ "redis") as typeof import("redis");
+    const client = redis.createClient({ url: process.env.REDIS_URL });
+    await client.connect();
 
-  const id = `job:${Date.now()}:${Math.random().toString(36).slice(2)}`;
-  const score = (job.runAt ?? new Date()).getTime();
-  await client.zAdd(`queue:${job.type}`, { score, value: JSON.stringify({ id, ...job }) });
-  await client.disconnect();
-
-  return id;
+    const id = `job:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+    const score = (job.runAt ?? new Date()).getTime();
+    await client.zAdd(`queue:${job.type}`, { score, value: JSON.stringify({ id, ...job }) });
+    await client.disconnect();
+    return id;
+  } catch {
+    logger.warn("Redis unavailable, falling back to Prisma queue");
+    return enqueueViaPrisma(job);
+  }
 }
 
 // ── Job dispatcher ────────────────────────────────────────────────────────────
