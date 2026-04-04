@@ -7,6 +7,7 @@ import { VerificationPanel } from "@/components/VerificationPanel";
 import { RiskSummary } from "@/components/RiskSummary";
 import { DecisionModal } from "@/components/DecisionModal";
 import { ClaudeSummary } from "@/components/ClaudeSummary";
+import { RepPlaybook } from "@/components/RepPlaybook";
 import { useToast } from "@/components/ui/Toast";
 import type { OrderPayload, VerificationResult, DecisionFormValues } from "@/lib/schemas";
 
@@ -94,6 +95,11 @@ export default function NewOrderPage() {
                 <span className="ml-2 text-sm font-normal text-slate-400 font-mono">#{orderId}</span>
               </h2>
               <VerificationPanel verification={verification} />
+              <RepPlaybook
+                verification={verification}
+                requiresOtp={(verification.overall as { requiresOtp?: boolean }).requiresOtp}
+                requiresDoc={(verification.overall as { requiresDocVerification?: boolean }).requiresDocVerification}
+              />
               {currentOrder && <ClaudeSummary order={currentOrder} verification={verification} />}
             </div>
 
