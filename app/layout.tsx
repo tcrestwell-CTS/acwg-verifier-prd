@@ -15,9 +15,10 @@ const navItems = [
 ];
 
 const adminItems = [
-  { href: "/admin/rules",    label: "Rules" },
-  { href: "/admin/reports",  label: "Reports" },
-  { href: "/admin/chargebacks", label: "Chargebacks" },
+  { href: "/admin/rules",        label: "Rules" },
+  { href: "/admin/reports",      label: "Reports" },
+  { href: "/admin/chargebacks",  label: "Chargebacks" },
+  { href: "/admin/jobs",         label: "Jobs" },
 ];
 
 export default function RootLayout({ children }: { children: ReactNode }) {
