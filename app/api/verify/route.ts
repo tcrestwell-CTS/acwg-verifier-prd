@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     const [addressResult, phoneResult, emailResult, paymentResult, ipResult] =
       await Promise.all([
         withRetry(
-          () => checkAddress(order.shippingAddress as typeof order.billingAddress, order.billingAddress),
+          () => checkAddress(shippingAddr, order.billingAddress),
           { label: "address-check", attempts: 2 }
         ),
         withRetry(() => checkPhone(order.contact.phone), {
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
           { label: "payment-check", attempts: 2 }
         ),
         withRetry(
-          () => checkIp(order.context?.ip, order.shippingAddress),
+          () => checkIp(order.context?.ip, shippingAddr),
           { label: "ip-check", attempts: 2 }
         ),
       ]);
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
         email: order.contact.email,
         phone: order.contact.phone,
         billingAddress: order.billingAddress as object,
-        shippingAddress: order.shippingAddress as object,
+        shippingAddress: shippingAddr as object,
         items: order.items as object,
         paymentMeta: {
           cardLast4: order.paymentMeta.cardLast4 ?? null,
