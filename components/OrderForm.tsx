@@ -31,7 +31,8 @@ function AddressFields({
   label,
 }: {
   prefix: "billingAddress" | "shippingAddress";
-  register: ReturnType<typeof useForm<OrderPayload>>["register"];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  register: any;
   errors: Record<string, unknown>;
   label: string;
 }) {
