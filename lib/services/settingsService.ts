@@ -1,5 +1,4 @@
 import { db } from "@/lib/db";
-import { Prisma } from "@prisma/client";
 import { logger } from "@/lib/logger";
 
 export interface FeatureSettings {
@@ -24,7 +23,6 @@ const DEFAULTS = {
   otpStepUp: true,
   documentRequest: true,
   payment3ds: false,
-  configJson: Prisma.JsonNull as unknown,
   updatedBy: "system",
 };
 
