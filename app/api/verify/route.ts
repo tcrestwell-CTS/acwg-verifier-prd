@@ -43,6 +43,8 @@ export async function POST(req: NextRequest) {
   try {
     const shippingAddr = (order.shippingAddress ?? order.billingAddress) as typeof order.billingAddress;
 
+    console.log("verify:start", { requestId, email: order.contact.email });
+
     // Run all integration checks in parallel with retries
     const [addressResult, phoneResult, emailResult, paymentResult, ipResult] =
       await Promise.all([
@@ -68,6 +70,8 @@ export async function POST(req: NextRequest) {
         ),
       ]);
 
+    console.log("verify:signals_collected", { requestId, score: "pending" });
+
     // Run deterministic risk engine
     const risk = runRiskEngine({
       address: addressResult,
@@ -83,7 +87,10 @@ export async function POST(req: NextRequest) {
       reasons: risk.reasons,
     };
 
+    console.log("verify:risk_computed", { requestId, score: risk.score, decision: risk.decision });
+
     // Persist to database
+    console.log("verify:db_write_start", { requestId });
     const dbOrder = await db.order.create({
       data: {
         customerName: `${order.customer.firstName} ${order.customer.lastName}`,
@@ -127,6 +134,8 @@ export async function POST(req: NextRequest) {
         },
       });
     }
+
+    console.log("verify:db_order_created", { requestId, orderId: dbOrder.id });
 
     await writeAuditLog({
       orderId: dbOrder.id,
