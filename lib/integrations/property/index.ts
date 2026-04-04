@@ -30,13 +30,15 @@ async function getCoreLogicToken(): Promise<string> {
   const secret = process.env.PROPERTY_API_SECRET!;
   const credentials = Buffer.from(`${key}:${secret}`).toString("base64");
 
-  const res = await fetch("https://property.corelogicapi.com/oauth2/token", {
+  const res = await fetch("https://property.corelogicapi.com/oauth/client_credential/accesstoken?grant_type=client_credentials", {
     method: "POST",
     headers: {
       Authorization: `Basic ${credentials}`,
       "Content-Type": "application/x-www-form-urlencoded",
+      "Content-Length": "0",
     },
-    body: "grant_type=client_credentials",
+    body: "",
+    // Apigee requires Content-Length: 0
     signal: AbortSignal.timeout(5000),
   });
 
