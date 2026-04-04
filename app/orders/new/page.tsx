@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { OrderForm } from "@/components/OrderForm";
 import { VerificationPanel } from "@/components/VerificationPanel";
@@ -78,6 +78,21 @@ export default function NewOrderPage() {
     },
   });
 
+  // Extract advanced signals from verification response
+  type AdvancedVerification = typeof verification & {
+    identity?: React.ComponentProps<typeof IdentityPanel>["identity"];
+    property?: React.ComponentProps<typeof PropertyPanel>["property"];
+    device?: React.ComponentProps<typeof DevicePanel>["device"];
+    phoneIntel?: React.ComponentProps<typeof PhonePanel>["phone"];
+  };
+  const adv = verification as AdvancedVerification | null;
+  const advancedSignals = {
+    identity:   adv?.identity   ?? null,
+    property:   adv?.property   ?? null,
+    device:     adv?.device     ?? null,
+    phoneIntel: adv?.phoneIntel ?? null,
+  };
+
   return (
     <div>
       <div className="mb-8">
@@ -127,18 +142,10 @@ export default function NewOrderPage() {
                 />
               </div>
               {/* Advanced signal panels — shown when features enabled */}
-              {(verification as { identity?: unknown }).identity && (
-                <IdentityPanel identity={(verification as { identity: Parameters<typeof IdentityPanel>[0]["identity"] }).identity} />
-              )}
-              {(verification as { property?: unknown }).property && (
-                <PropertyPanel property={(verification as { property: Parameters<typeof PropertyPanel>[0]["property"] }).property} />
-              )}
-              {(verification as { device?: unknown }).device && (
-                <DevicePanel device={(verification as { device: Parameters<typeof DevicePanel>[0]["device"] }).device} />
-              )}
-              {(verification as { phoneIntel?: unknown }).phoneIntel && (
-                <PhonePanel phone={(verification as { phoneIntel: Parameters<typeof PhonePanel>[0]["phone"] }).phoneIntel} />
-              )}
+              {advancedSignals.identity  && <IdentityPanel  identity={advancedSignals.identity}  />}
+              {advancedSignals.property  && <PropertyPanel  property={advancedSignals.property}  />}
+              {advancedSignals.device    && <DevicePanel    device={advancedSignals.device}       />}
+              {advancedSignals.phoneIntel && <PhonePanel    phone={advancedSignals.phoneIntel}   />}
             </div>
           </div>
 
