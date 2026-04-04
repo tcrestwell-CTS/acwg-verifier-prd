@@ -8,6 +8,11 @@ import { RiskSummary } from "@/components/RiskSummary";
 import { DecisionModal } from "@/components/DecisionModal";
 import { ClaudeSummary } from "@/components/ClaudeSummary";
 import { RepPlaybook } from "@/components/RepPlaybook";
+import { IdentityPanel } from "@/components/panels/IdentityPanel";
+import { DevicePanel } from "@/components/panels/DevicePanel";
+import { PropertyPanel } from "@/components/panels/PropertyPanel";
+import { PhonePanel } from "@/components/panels/PhonePanel";
+import { RiskTimeline, buildTimeline } from "@/components/panels/RiskTimeline";
 import { useToast } from "@/components/ui/Toast";
 import type { OrderPayload, VerificationResult, DecisionFormValues } from "@/lib/schemas";
 
@@ -103,8 +108,16 @@ export default function NewOrderPage() {
               {currentOrder && <ClaudeSummary order={currentOrder} verification={verification} />}
             </div>
 
-            <div className="lg:col-span-2">
-              <div className="sticky top-20">
+            <div className="lg:col-span-2 space-y-4">
+              <RiskTimeline steps={buildTimeline({
+                verified: true,
+                requiresOtp: !!(verification.overall as { requiresOtp?: boolean }).requiresOtp,
+                otpComplete: false,
+                requiresDoc: !!(verification.overall as { requiresDocVerification?: boolean }).requiresDocVerification,
+                docComplete: false,
+                decision: (verification.overall as { decision?: string }).decision ?? "",
+              })} />
+              <div className="sticky top-20 space-y-4">
                 <RiskSummary
                   verification={verification}
                   onApprove={() => setDecisionModal({ open: true, initialStatus: "approved" })}
@@ -113,6 +126,19 @@ export default function NewOrderPage() {
                   isPending={decisionMutation.isPending}
                 />
               </div>
+              {/* Advanced signal panels — shown when features enabled */}
+              {(verification as { identity?: unknown }).identity && (
+                <IdentityPanel identity={(verification as { identity: Parameters<typeof IdentityPanel>[0]["identity"] }).identity} />
+              )}
+              {(verification as { property?: unknown }).property && (
+                <PropertyPanel property={(verification as { property: Parameters<typeof PropertyPanel>[0]["property"] }).property} />
+              )}
+              {(verification as { device?: unknown }).device && (
+                <DevicePanel device={(verification as { device: Parameters<typeof DevicePanel>[0]["device"] }).device} />
+              )}
+              {(verification as { phoneIntel?: unknown }).phoneIntel && (
+                <PhonePanel phone={(verification as { phoneIntel: Parameters<typeof PhonePanel>[0]["phone"] }).phoneIntel} />
+              )}
             </div>
           </div>
 
@@ -130,3 +156,4 @@ export default function NewOrderPage() {
     </div>
   );
 }
+
