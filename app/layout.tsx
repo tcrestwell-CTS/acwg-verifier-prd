@@ -21,6 +21,7 @@ const adminItems = [
   { href: "/admin/chargebacks",  label: "Chargebacks" },
   { href: "/admin/jobs",         label: "Jobs" },
   { href: "/admin/settings",     label: "Settings" },
+  { href: "/admin/users",         label: "Users" },
 ];
 
 function UserMenu() {
