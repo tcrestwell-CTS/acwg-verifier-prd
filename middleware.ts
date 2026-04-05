@@ -13,6 +13,8 @@ export default withAuth(
       "/api/admin/rules", "/api/admin/reports", "/api/admin/chargebacks",
       "/api/admin/jobs", "/api/admin/retention", "/api/admin/experiments",
       "/api/admin/settings",
+      "/admin/users",
+      "/api/admin/users",
     ];
 
     const requiresAdmin = adminOnlyPaths.some((p) => pathname.startsWith(p));
