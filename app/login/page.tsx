@@ -72,17 +72,17 @@ function LoginForm() {
             <p className="font-black text-lg tracking-[0.2em] uppercase" style={{
               fontFamily: "'Georgia', serif",
               letterSpacing: "0.25em",
-              color: "white",
-              textShadow: "0 2px 8px rgba(0,0,0,0.5)"
+              color: "#cc1111",
+              textShadow: "0 2px 10px rgba(0,0,0,0.4)"
             }}>
               American Carpet Wholesalers
             </p>
             <div className="flex items-center gap-3 mt-2 justify-center">
-              <div className="h-px w-8" style={{ background: "#cc1111" }} />
+              <div className="h-px w-8" style={{ background: "#1e3a8a" }} />
               <p className="text-xs tracking-[0.3em] uppercase" style={{ color: "#8a9ab5" }}>
                 Fraud Verification Portal
               </p>
-              <div className="h-px w-8" style={{ background: "#cc1111" }} />
+              <div className="h-px w-8" style={{ background: "#1e3a8a" }} />
             </div>
           </div>
         </div>
