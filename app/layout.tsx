@@ -8,6 +8,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { clsx } from "clsx";
 import { ToastProvider } from "@/components/ui/Toast";
+import { SessionProvider, useSession, signOut } from "next-auth/react";
 
 const navItems = [
   { href: "/orders/new",     label: "New Order" },
@@ -21,6 +22,23 @@ const adminItems = [
   { href: "/admin/jobs",         label: "Jobs" },
   { href: "/admin/settings",     label: "Settings" },
 ];
+
+function UserMenu() {
+  const { data: session } = useSession();
+  if (!session) return null;
+  const name = session.user?.name ?? session.user?.email ?? "";
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-white/50 hidden sm:block">{name}</span>
+      <button
+        onClick={() => signOut({ callbackUrl: "/login" })}
+        className="text-xs text-white/40 hover:text-white/80 transition-colors border border-white/10 hover:border-white/30 px-2 py-0.5 rounded"
+      >
+        Sign out
+      </button>
+    </div>
+  );
+}
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -36,6 +54,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body>
         <QueryClientProvider client={queryClient}>
+          <SessionProvider>
           <ToastProvider>
             {/* Header */}
             <header className="sticky top-0 z-40 shadow-md" style={{ background: "linear-gradient(135deg, #8b1a1a 0%, #6b1414 45%, #1a2f5e 100%)" }}>
@@ -80,10 +99,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                     ))}
                   </nav>
 
-                  {/* Live badge */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* Live badge + user menu */}
+                  <div className="flex items-center gap-3 flex-shrink-0">
                     <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                     <span className="text-xs text-green-300 font-semibold">Live</span>
+                    <UserMenu />
                   </div>
                 </div>
               </div>
@@ -139,6 +159,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               </div>
             </footer>
           </ToastProvider>
+          </SessionProvider>
           <ReactQueryDevtools initialIsOpen={false} />
         </QueryClientProvider>
       </body>
