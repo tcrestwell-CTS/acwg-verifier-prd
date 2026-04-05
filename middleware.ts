@@ -17,6 +17,27 @@ export default withAuth(
       "/api/admin/users",
     ];
 
+    const superAdminOnlyPaths = [
+      "/admin/users", "/api/admin/users",
+      "/admin/settings", "/api/admin/settings",
+      "/api/admin/retention", "/api/admin/experiments",
+    ];
+
+    const requiresSuperAdmin = superAdminOnlyPaths.some((p) => pathname.startsWith(p));
+
+    if (requiresSuperAdmin) {
+      const role = (token as { role?: string } | null)?.role ?? "reviewer";
+      if (role !== "superadmin") {
+        if (pathname.startsWith("/api/")) {
+          return NextResponse.json({ error: "Forbidden — superadmin role required" }, { status: 403 });
+        }
+        const url = req.nextUrl.clone();
+        url.pathname = "/admin/login";
+        url.searchParams.set("error", "AccessDenied");
+        return NextResponse.redirect(url);
+      }
+    }
+
     const requiresAdmin = adminOnlyPaths.some((p) => pathname.startsWith(p));
 
     if (requiresAdmin) {
