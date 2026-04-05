@@ -100,12 +100,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                     ))}
                   </nav>
 
-                  {/* Live badge + user menu */}
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                    <span className="text-xs text-green-300 font-semibold">Live</span>
-                    <UserMenu />
-                  </div>
+                  {/* Live badge + user menu — hidden on login pages */}
+                  {!pathname.startsWith("/login") && !pathname.startsWith("/admin/login") && (
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                      <span className="text-xs text-green-300 font-semibold">Live</span>
+                      <UserMenu />
+                    </div>
+                  )}
                 </div>
               </div>
             </header>
