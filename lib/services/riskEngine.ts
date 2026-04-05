@@ -121,14 +121,21 @@ export function runRiskEngine(
   if (v.phone.type === "voip") {
     components.phone += 10;
     reasons.push("Phone number is VoIP — harder to verify ownership");
-    requiresOtp = true; // VoIP always requires OTP
-    requiresDocVerification = dist > 100; // + doc if cross-region
+    requiresOtp = true;
+    requiresDocVerification = dist > 100;
   }
   if (v.phone.active === false) {
-    components.phone += 10;
-    reasons.push("Phone number appears inactive or disconnected");
+    // Check if it's a non-existent number (high risk score) vs just inactive
+    if (v.phone.riskScore !== undefined && v.phone.riskScore >= 80) {
+      components.phone += 30;
+      reasons.push("Phone number does not exist in carrier database — likely fake");
+      requiresOtp = true;
+    } else {
+      components.phone += 15;
+      reasons.push("Phone number appears inactive or disconnected");
+    }
   }
-  if (v.phone.riskScore !== undefined && v.phone.riskScore > 70) {
+  if (v.phone.riskScore !== undefined && v.phone.riskScore > 70 && v.phone.active !== false) {
     components.phone += 10;
     reasons.push(`Phone carrier risk score elevated (${v.phone.riskScore}/100)`);
   }
