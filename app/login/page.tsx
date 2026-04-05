@@ -204,22 +204,22 @@ function LoginForm() {
               background: "rgba(0,0,0,0.2)",
               borderTop: "1px solid rgba(255,255,255,0.05)"
             }}>
-              <p className="text-xs" style={{ color: "#4a5568" }}>
+              <p className="text-xs" style={{ color: "#64748b" }}>
                 Authorized personnel only
               </p>
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-xs" style={{ color: "#4a5568" }}>Secure</span>
+                <span className="text-xs" style={{ color: "#64748b" }}>Secure</span>
               </div>
             </div>
           </div>
 
           {/* Admin link */}
-          <p className="text-center mt-6 text-xs" style={{ color: "#2d3748" }}>
+          <p className="text-center mt-6 text-xs" style={{ color: "#64748b" }}>
             Admin?{" "}
-            <a href="/admin/login" className="transition-colors" style={{ color: "#4a6fa5" }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "#6b8fc7")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "#4a6fa5")}
+            <a href="/admin/login" className="transition-colors" style={{ color: "#7a9fc7" }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#a0c0e8")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "#7a9fc7")}
             >
               Admin portal →
             </a>
@@ -227,7 +227,7 @@ function LoginForm() {
         </div>
 
         {/* Footer */}
-        <p className="relative z-10 mt-12 text-xs text-center" style={{ color: "#2d3748" }}>
+        <p className="relative z-10 mt-12 text-xs text-center" style={{ color: "#64748b" }}>
           © 2026 Crestwell Travel Technologies, LLC · Service created and managed by Crestwell Travel Technologies
         </p>
       </div>
