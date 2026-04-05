@@ -227,7 +227,7 @@ function LoginForm() {
         </div>
 
         {/* Footer */}
-        <p className="relative z-10 mt-12 text-xs text-center" style={{ color: "#64748b" }}>
+        <p className="relative z-10 mt-12 text-xs text-center text-white/60">
           © 2026 Crestwell Travel Technologies, LLC · Service created and managed by Crestwell Travel Technologies
         </p>
       </div>
