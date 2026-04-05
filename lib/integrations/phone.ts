@@ -36,9 +36,14 @@ export async function checkPhone(rawPhone: string): Promise<PhoneCheckResult> {
 
     if (!res.ok) {
       if (res.status === 404) {
+        // Number does not exist in any carrier database — hard flag
+        logger.warn("Phone number not found in carrier database", { phone: e164 });
         return {
           e164,
-          reasons: ["Phone number not found in carrier database"],
+          type: undefined,
+          active: false,
+          riskScore: 90,
+          reasons: ["Phone number does not exist in carrier database — likely fake or invalid"],
         };
       }
       throw new Error(`Twilio error: ${res.status}`);
@@ -53,8 +58,21 @@ export async function checkPhone(rawPhone: string): Promise<PhoneCheckResult> {
       };
     };
 
-    const lineType = data.line_type_intelligence?.type ?? "unknown";
-    const carrier = data.line_type_intelligence?.carrier_name;
+    const lineTypeIntel = data.line_type_intelligence;
+    const errorCode = lineTypeIntel?.error_code;
+    const lineType = lineTypeIntel?.type ?? "unknown";
+    const carrier = lineTypeIntel?.carrier_name;
+
+    // Error code means Twilio couldn't verify the number
+    if (errorCode) {
+      logger.warn("Phone line type intelligence error", { phone: e164, errorCode });
+      return {
+        e164,
+        active: false,
+        riskScore: 75,
+        reasons: [`Phone number could not be verified by carrier (error ${errorCode})`],
+      };
+    }
 
     const typeMap: Record<string, "mobile" | "landline" | "voip"> = {
       mobile: "mobile",
@@ -66,12 +84,21 @@ export async function checkPhone(rawPhone: string): Promise<PhoneCheckResult> {
 
     const type = typeMap[lineType] ?? "mobile";
     const isVoip = type === "voip";
+    const isUnknown = lineType === "unknown";
     const reasons: string[] = [];
 
     if (isVoip) reasons.push("Phone number is VoIP — harder to verify subscriber identity");
+    else if (isUnknown) reasons.push("Phone line type could not be determined — treat as unverified");
     else reasons.push(`Active ${type} number${carrier ? ` (${carrier})` : ""}`);
 
-    return { e164, carrier, type, active: !isVoip, reasons };
+    return {
+      e164,
+      carrier,
+      type,
+      active: !isVoip && !isUnknown,
+      riskScore: isVoip ? 60 : isUnknown ? 50 : 10,
+      reasons,
+    };
   } catch (err) {
     logger.error("Phone check failed", { error: String(err), phone: e164 });
     return {
@@ -101,3 +128,4 @@ function stubPhoneCheck(e164: string): PhoneCheckResult {
     reasons: ["Phone stub — real Twilio check skipped (no credentials)"],
   };
 }
+
