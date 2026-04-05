@@ -1,38 +1,26 @@
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  const token = process.env.PROPERTY_API_KEY ?? "";
-  if (!token) return NextResponse.json({ error: "PROPERTY_API_KEY not set" });
+  const apiKey = process.env.PROPERTY_API_KEY ?? "";
+  if (!apiKey) return NextResponse.json({ error: "PROPERTY_API_KEY not set" });
 
-  // Test against Estated sandbox first, then production
-  const results: Record<string, unknown> = { token_prefix: token.slice(0, 8) };
+  try {
+    const params = new URLSearchParams({
+      address1: "100 Cherokee Blvd",
+      address2: "Chattanooga, TN 37405",
+    });
 
-  for (const [label, baseUrl] of [
-    ["sandbox", "https://sandbox.estated.com/v4/property"],
-    ["production", "https://apis.estated.com/v4/property"],
-  ]) {
-    try {
-      const params = new URLSearchParams({
-        token,
-        street_address: "1867 Gatewood Dr",
-        city: "Montgomery",
-        state: "AL",
-        zip_code: "36106",
-      });
-      const res = await fetch(`${baseUrl}?${params}`, {
+    const res = await fetch(
+      `https://api.gateway.attomdata.com/propertyapi/v1.0.0/property/basicprofile?${params}`,
+      {
+        headers: { apikey: apiKey, Accept: "application/json" },
         signal: AbortSignal.timeout(6000),
-      });
-      const body = await res.json();
-      results[label as string] = {
-        status: res.status,
-        owner: body?.data?.owner ?? null,
-        warnings: body?.warnings ?? [],
-        error: body?.error ?? null,
-      };
-    } catch (err) {
-      results[label as string] = { error: String(err) };
-    }
-  }
+      }
+    );
 
-  return NextResponse.json(results);
+    const body = await res.json();
+    return NextResponse.json({ status: res.status, body });
+  } catch (err) {
+    return NextResponse.json({ error: String(err) });
+  }
 }
