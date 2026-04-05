@@ -17,46 +17,7 @@ interface PropertyInput {
   submittedName: string;
 }
 
-// ── CoreLogic OAuth token (cached in-process) ─────────────────────────────
-
-let cachedToken: { token: string; expiresAt: number } | null = null;
-
-async function getCoreLogicToken(): Promise<string> {
-  if (cachedToken && cachedToken.expiresAt > Date.now() + 30_000) {
-    return cachedToken.token;
-  }
-
-  const key = process.env.PROPERTY_API_KEY!;
-  const secret = process.env.PROPERTY_API_SECRET!;
-  const credentials = Buffer.from(`${key}:${secret}`).toString("base64");
-
-  const res = await fetch("https://property.corelogicapi.com/oauth/client_credential/accesstoken?grant_type=client_credentials", {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${credentials}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-      "Content-Length": "0",
-    },
-    body: "",
-    // Apigee requires Content-Length: 0
-    signal: AbortSignal.timeout(5000),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`CoreLogic token exchange failed ${res.status}: ${text}`);
-  }
-
-  const data = await res.json() as { access_token: string; expires_in: number };
-  cachedToken = {
-    token: data.access_token,
-    expiresAt: Date.now() + data.expires_in * 1000,
-  };
-
-  return cachedToken.token;
-}
-
-// ── Name match scoring ────────────────────────────────────────────────────
+// ── Name match scoring ────────────────────────────────────────────────────────
 
 function scoreNameMatch(
   submittedName: string,
@@ -73,14 +34,49 @@ function scoreNameMatch(
   return "none";
 }
 
-// ── Main adapter ──────────────────────────────────────────────────────────
+// ── Melissa Property API ──────────────────────────────────────────────────────
+// Endpoint: https://property.melissadata.net/v4/WEB/LookupProperty
+// Auth: License key as `id` query param (no OAuth needed)
+// Docs: https://wiki.melissadata.com/index.php?title=Property_V4:LookupProperty
+
+interface MelissaPropertyResponse {
+  Version?: string;
+  TransmissionResults?: string;
+  TotalRecords?: string;
+  Records?: Array<{
+    RecordID?: string;
+    Results?: string;
+    Owner?: {
+      Name1Full?: string;
+      Name2Full?: string;
+      CorporateOwner?: string;
+    };
+    ParsedPropertyAddress?: {
+      AddressLine1?: string;
+      City?: string;
+      State?: string;
+      PostalCode?: string;
+    };
+    Values?: {
+      AssessedValueTotal?: string;
+      MarketValueTotal?: string;
+    };
+    CurrentDeed?: {
+      SaleDate?: string;
+      SalePrice?: string;
+    };
+    Parcel?: {
+      LandUseCode?: string;
+      PropertyIndicatorCode?: string;
+    };
+  }>;
+}
 
 export async function checkProperty(input: PropertyInput): Promise<PropertySignals> {
-  const key = process.env.PROPERTY_API_KEY;
-  const secret = process.env.PROPERTY_API_SECRET;
+  const licenseKey = process.env.PROPERTY_API_KEY;
 
-  if (!key || !secret) {
-    logger.info("property: CoreLogic credentials not set — stub mode");
+  if (!licenseKey) {
+    logger.info("property: Melissa API key not set — stub mode");
     return {
       ownerName: null, ownershipYears: null,
       matchLevel: "unavailable", isCommercial: false, isVacant: false,
@@ -89,55 +85,32 @@ export async function checkProperty(input: PropertyInput): Promise<PropertySigna
   }
 
   try {
-    const token = await getCoreLogicToken();
-
-    // CoreLogic v2 property search
-    const res = await fetch("https://property.corelogicapi.com/v2/properties/search", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        searchParameters: {
-          address: {
-            streetAddress: input.line1,
-            city: input.city,
-            state: input.state,
-            postalCode: input.postalCode,
-          },
-        },
-        resultFields: [
-          "ownerInfo",
-          "propertyType",
-          "saleHistory",
-          "vacancyIndicator",
-        ],
-      }),
-      signal: AbortSignal.timeout(5000),
+    const params = new URLSearchParams({
+      id: licenseKey,
+      a1: input.line1,
+      city: input.city,
+      state: input.state,
+      zip: input.postalCode,
+      cols: "GrpPropertyAddress,GrpOwner,GrpValues,GrpCurrentDeed,GrpParcel",
+      format: "JSON",
     });
 
+    const res = await fetch(
+      `https://property.melissadata.net/v4/WEB/LookupProperty?${params}`,
+      {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(5000),
+      }
+    );
+
     if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`CoreLogic search ${res.status}: ${text}`);
+      throw new Error(`Melissa Property API ${res.status}`);
     }
 
-    const data = await res.json() as {
-      properties?: Array<{
-        ownerInfo?: {
-          owner1FullName?: string;
-          owner2FullName?: string;
-        };
-        propertyType?: string;
-        saleHistory?: Array<{ saleDate?: string }>;
-        vacancyIndicator?: string;
-      }>;
-    };
+    const data = await res.json() as MelissaPropertyResponse;
+    const record = data.Records?.[0];
 
-    const prop = data.properties?.[0];
-
-    if (!prop) {
+    if (!record) {
       return {
         ownerName: null, ownershipYears: null,
         matchLevel: "unavailable", isCommercial: false, isVacant: false,
@@ -145,45 +118,62 @@ export async function checkProperty(input: PropertyInput): Promise<PropertySigna
       };
     }
 
-    const ownerName = prop.ownerInfo?.owner1FullName ?? null;
+    // Result codes — AS = address found, AE = address error
+    const resultCodes = record.Results ?? "";
+    if (resultCodes.includes("AE") || resultCodes.includes("GE")) {
+      return {
+        ownerName: null, ownershipYears: null,
+        matchLevel: "unavailable", isCommercial: false, isVacant: false,
+        reasons: ["Address not found in Melissa property database"],
+      };
+    }
+
+    const ownerName = record.Owner?.Name1Full ??
+      record.Owner?.CorporateOwner ?? null;
+
     const matchLevel = ownerName
       ? scoreNameMatch(input.submittedName, ownerName)
       : "unavailable";
 
-    // Most recent sale → ownership estimate
-    const sales = prop.saleHistory ?? [];
-    const lastSale = sales.sort((a, b) =>
-      new Date(b.saleDate ?? 0).getTime() - new Date(a.saleDate ?? 0).getTime()
-    )[0];
-    const ownershipYears = lastSale?.saleDate
-      ? new Date().getFullYear() - new Date(lastSale.saleDate).getFullYear()
-      : null;
+    // Estimate ownership years from deed sale date
+    let ownershipYears: number | null = null;
+    const saleDate = record.CurrentDeed?.SaleDate;
+    if (saleDate && saleDate.length >= 4) {
+      const saleYear = parseInt(saleDate.slice(0, 4), 10);
+      if (!isNaN(saleYear) && saleYear > 1900) {
+        ownershipYears = new Date().getFullYear() - saleYear;
+      }
+    }
 
-    const propType = (prop.propertyType ?? "").toLowerCase();
-    const isCommercial = propType.includes("commercial") ||
-      propType.includes("industrial") || propType.includes("retail");
-    const isVacant = (prop.vacancyIndicator ?? "").toLowerCase() === "y";
+    // Property type — Melissa land use codes
+    const landUse = (record.Parcel?.LandUseCode ?? "").toLowerCase();
+    const propIndicator = (record.Parcel?.PropertyIndicatorCode ?? "").toLowerCase();
+    const isCommercial = ["commercial", "industrial", "retail", "office"]
+      .some((t) => landUse.includes(t) || propIndicator.includes(t));
+
+    const isCorporate = !!record.Owner?.CorporateOwner;
+    const isVacant = landUse.includes("vacant");
 
     const reasons: string[] = [];
     if (matchLevel === "none" && ownerName) {
-      reasons.push(`Record owner "${ownerName}" does not match submitted name`);
+      reasons.push(`Property owner on record "${ownerName}" — does not match submitted name`);
     } else if (matchLevel === "partial" && ownerName) {
       reasons.push(`Partial name match with property record: ${ownerName}`);
     }
     if (isVacant) reasons.push("Property recorded as vacant");
     if (isCommercial) reasons.push("Address is a commercial property");
+    if (isCorporate && matchLevel !== "full") {
+      reasons.push("Property is corporate-owned — name match not possible");
+    }
 
-    logger.info("property: CoreLogic lookup complete", {
-      matchLevel,
-      ownershipYears,
-      isVacant,
-      isCommercial,
+    logger.info("property: Melissa lookup complete", {
+      matchLevel, ownershipYears, isVacant, isCommercial,
     });
 
     return { ownerName, ownershipYears, matchLevel, isCommercial, isVacant, reasons };
 
   } catch (err) {
-    logger.error("property: CoreLogic failed", { error: String(err) });
+    logger.error("property: Melissa lookup failed", { error: String(err) });
     return {
       ownerName: null, ownershipYears: null,
       matchLevel: "unavailable", isCommercial: false, isVacant: false,
