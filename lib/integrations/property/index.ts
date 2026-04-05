@@ -41,20 +41,22 @@ function scoreNameMatch(
 
 interface AttomProperty {
   summary?: {
-    propclass?: string;
-    proptype?: string;
+    propClass?: string;
+    propType?: string;
     propLandUse?: string;
-    yearbuilt?: number;
-  };
-  owner?: {
-    owner1?: { lastname?: string; firstname?: string };
-    owner2?: { lastname?: string; firstname?: string };
-    corporateindicator?: string;
+    yearBuilt?: number;
     absenteeInd?: string;
+    propertyType?: string;
+  };
+  assessment?: {
+    owner?: {
+      owner1?: { fullName?: string; lastName?: string; firstNameAndMi?: string };
+      corporateIndicator?: string;
+      absenteeOwnerStatus?: string;
+    };
   };
   sale?: {
     saleTransDate?: string;
-    amount?: { saleamt?: number };
   };
 }
 
@@ -109,12 +111,10 @@ export async function checkProperty(input: PropertyInput): Promise<PropertySigna
     }
 
     const prop = data.property[0];
-    const owner = prop.owner;
+    const owner = prop.assessment?.owner;
 
-    // Build owner name from first/last name fields
-    const first = owner?.owner1?.firstname ?? "";
-    const last = owner?.owner1?.lastname ?? "";
-    const ownerName = [first, last].filter(Boolean).join(" ") || null;
+    // ATTOM returns owner under assessment.owner with fullName field
+    const ownerName = owner?.owner1?.fullName ?? null;
 
     const matchLevel = ownerName
       ? scoreNameMatch(input.submittedName, ownerName)
@@ -131,12 +131,12 @@ export async function checkProperty(input: PropertyInput): Promise<PropertySigna
     }
 
     // Property type
-    const propClass = (prop.summary?.propclass ?? "").toLowerCase();
+    const propClass = (prop.summary?.propClass ?? "").toLowerCase();
     const propLandUse = (prop.summary?.propLandUse ?? "").toLowerCase();
     const isCommercial = ["commercial", "industrial", "retail", "office", "warehouse"]
       .some((t) => propClass.includes(t) || propLandUse.includes(t));
     const isVacant = propLandUse.includes("vacant");
-    const isAbsentee = owner?.absenteeInd === "Y";
+    const isAbsentee = owner?.absenteeOwnerStatus !== "O";
 
     const reasons: string[] = [];
     if (matchLevel === "none" && ownerName) {
