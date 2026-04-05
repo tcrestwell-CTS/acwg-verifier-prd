@@ -45,7 +45,7 @@ function LoginForm() {
 
   return (
     <div className="min-h-screen flex flex-col relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-8 px-4" style={{
-      background: "linear-gradient(90deg, #cc1111 0%, #b91c1c 20%, #f8f8ff 50%, #1e3a8a 80%, #1a2f6e 100%)",
+      background: "linear-gradient(90deg, rgba(204,17,17,0.45) 0%, rgba(185,28,28,0.35) 20%, rgba(248,248,255,0.25) 50%, rgba(30,58,138,0.35) 80%, rgba(26,47,110,0.45) 100%), linear-gradient(0deg, #f1f5f9, #f1f5f9)",
       width: "100vw",
       marginLeft: "calc(-50vw + 50%)",
     }}>
