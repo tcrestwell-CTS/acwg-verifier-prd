@@ -38,7 +38,7 @@ async function callSmarty(address: Address): Promise<{
   components?: { zipCode?: string; plus4Code?: string };
   metadata?: { latitude?: number; longitude?: number };
   normalized?: Address;
-}> {
+} & { notFound?: boolean }> {
   const authId = process.env.SMARTY_AUTH_ID;
   const authToken = process.env.SMARTY_AUTH_TOKEN;
 
@@ -83,7 +83,9 @@ async function callSmarty(address: Address): Promise<{
   }>;
 
   if (!data || data.length === 0) {
-    return { dpvMatchCode: "N" };
+    // Address not found in USPS database — likely fake or doesn't exist
+    logger.warn("Address not found in Smarty database", { address });
+    return { dpvMatchCode: "N", notFound: true };
   }
 
   const result = data[0];
@@ -127,9 +129,13 @@ export async function checkAddress(
     const deliverable = dpvCode === "Y" || dpvCode === "S";
     const residential = shipResult.rdi === "Residential";
     const apartmentNeeded = dpvCode === "S" || dpvCode === "D";
+    const addressNotFound = shipResult.notFound === true;
+    const billNotFound = billResult.notFound === true;
 
-    if (!deliverable) reasons.push("Shipping address is not USPS-deliverable");
-    if (apartmentNeeded) reasons.push("Apartment or unit number appears missing");
+    // Flag non-existent addresses — even with 3rd party delivery, the address must exist
+    if (addressNotFound) reasons.push("Shipping address does not exist — not found in address database");
+    if (billNotFound) reasons.push("Billing address does not exist — not found in address database");
+    if (!addressNotFound && apartmentNeeded) reasons.push("Apartment or unit number appears missing");
 
     // Estimate distance using lat/lon if available
     let distanceKm: number | undefined;
