@@ -95,9 +95,15 @@ export function runRiskEngine(
 
   // ── Address checks ──────────────────────────────────────────────────────
 
-  // DPV deliverability not scored — ACWG uses third-party delivery, not USPS
-  // Address is still normalized and distance-checked
-  if (v.address.apartmentNeeded) {
+  // Even with 3rd party delivery, the address must actually exist
+  if (v.address.dpv === "N" && !v.address.deliverable) {
+    components.address += 35;
+    reasons.push("Address does not exist in USPS database — likely fake or invalid");
+    requiresOtp = true;
+  } else if (v.address.dpv === "U") {
+    components.address += 15;
+    reasons.push("Address could not be verified — may be invalid");
+  } else if (v.address.apartmentNeeded) {
     components.address += 5;
     reasons.push("Apartment or unit number may be missing from address");
   }
@@ -142,17 +148,21 @@ export function runRiskEngine(
 
   // ── Email checks ────────────────────────────────────────────────────────
 
-  if (v.email.disposable === true) {
-    components.email += 15;
-    reasons.push("Email address uses a disposable/throwaway domain");
-  }
   if (v.email.mxValid === false) {
-    components.email += 10;
-    reasons.push("Email domain has no valid MX records");
-  }
-  if (v.email.domainRisk === "high") {
-    components.email += 10;
-    reasons.push("Email domain flagged as high risk");
+    // Domain has no mail server — address cannot exist
+    components.email += 30;
+    reasons.push("Email domain has no mail server — address is invalid or fake");
+    requiresOtp = true;
+  } else if (v.email.disposable === true) {
+    components.email += 20;
+    reasons.push("Email is a disposable/throwaway address — cannot verify identity");
+    requiresOtp = true;
+  } else if (v.email.domainRisk === "high") {
+    components.email += 15;
+    reasons.push("Email domain flagged as high risk by fraud intelligence");
+  } else if (v.email.domainRisk === "medium") {
+    components.email += 5;
+    reasons.push("Email domain risk elevated");
   }
 
   // ── Payment checks ──────────────────────────────────────────────────────
