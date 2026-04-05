@@ -46,6 +46,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
   }));
   const pathname = usePathname();
+  const isLoginPage = pathname === "/login" || pathname === "/admin/login";
 
   return (
     <html lang="en">
@@ -75,8 +76,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                     </div>
                   </Link>
 
-                  {/* Main nav */}
-                  <nav className="flex items-center gap-1">
+                  {/* Main nav — hidden on login pages */}
+                  {!isLoginPage && <nav className="flex items-center gap-1">
                     {navItems.map((item) => (
                       <Link key={item.href} href={item.href} className={clsx(
                         "px-3 py-2 rounded-md text-sm font-semibold transition-all",
@@ -100,8 +101,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                     ))}
                   </nav>
 
+                  </nav>}
+
                   {/* Live badge + user menu — hidden on login pages */}
-                  {!pathname.startsWith("/login") && !pathname.startsWith("/admin/login") && (
+                  {!isLoginPage && (
                     <div className="flex items-center gap-3 flex-shrink-0">
                       <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                       <span className="text-xs text-green-300 font-semibold">Live</span>
@@ -169,3 +172,4 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     </html>
   );
 }
+
