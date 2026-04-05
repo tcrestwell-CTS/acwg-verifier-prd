@@ -6,18 +6,13 @@ export default withAuth(
     const token = req.nextauth.token;
     const pathname = req.nextUrl.pathname;
 
-    // Admin-only pages (rules, reports, chargebacks, jobs, experiments)
+    // Admin-only pages
     const adminOnlyPaths = [
-      "/admin/rules",
-      "/admin/reports",
-      "/admin/chargebacks",
-      "/admin/jobs",
-      "/api/admin/rules",
-      "/api/admin/reports",
-      "/api/admin/chargebacks",
-      "/api/admin/jobs",
-      "/api/admin/retention",
-      "/api/admin/experiments",
+      "/admin/rules", "/admin/reports", "/admin/chargebacks",
+      "/admin/jobs", "/admin/settings",
+      "/api/admin/rules", "/api/admin/reports", "/api/admin/chargebacks",
+      "/api/admin/jobs", "/api/admin/retention", "/api/admin/experiments",
+      "/api/admin/settings",
     ];
 
     const requiresAdmin = adminOnlyPaths.some((p) => pathname.startsWith(p));
@@ -40,22 +35,38 @@ export default withAuth(
   {
     callbacks: {
       authorized: ({ token, req }) => {
-        // Allow login page without token
-        if (req.nextUrl.pathname === "/admin/login") return true;
-        // All other /admin/* and /api/admin/* require a valid token
-        if (
-          req.nextUrl.pathname.startsWith("/admin/") ||
-          req.nextUrl.pathname.startsWith("/api/admin/")
-        ) {
+        const pathname = req.nextUrl.pathname;
+
+        // Public pages — no auth needed
+        if (pathname === "/login") return true;
+        if (pathname === "/admin/login") return true;
+        if (pathname === "/") return true;
+
+        // Orders require any valid session
+        if (pathname.startsWith("/orders/") || pathname.startsWith("/api/")) {
           return !!token;
         }
+
+        // Admin area requires valid session
+        if (pathname.startsWith("/admin/")) return !!token;
+
         return true;
       },
     },
-    pages: { signIn: "/admin/login" },
+    pages: {
+      signIn: "/login",   // rep login
+    },
   }
 );
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/admin/:path*"],
+  matcher: [
+    "/orders/:path*",
+    "/admin/:path*",
+    "/api/verify",
+    "/api/decision/:path*",
+    "/api/orders/:path*",
+    "/api/escalation/:path*",
+    "/api/admin/:path*",
+  ],
 };
