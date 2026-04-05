@@ -34,49 +34,41 @@ function scoreNameMatch(
   return "none";
 }
 
-// ── Melissa Property API ──────────────────────────────────────────────────────
-// Endpoint: https://property.melissadata.net/v4/WEB/LookupProperty
-// Auth: License key as `id` query param (no OAuth needed)
-// Docs: https://wiki.melissadata.com/index.php?title=Property_V4:LookupProperty
+// ── Estated Property API v4 ───────────────────────────────────────────────────
+// Endpoint: https://apis.estated.com/v4/property
+// Auth: ?token=YOUR_TOKEN (single key, no OAuth)
+// Docs: https://estated.com/developers/docs/v4/property/overview
+// Now part of ATTOM Data — existing keys remain valid
 
-interface MelissaPropertyResponse {
-  Version?: string;
-  TransmissionResults?: string;
-  TotalRecords?: string;
-  Records?: Array<{
-    RecordID?: string;
-    Results?: string;
-    Owner?: {
-      Name1Full?: string;
-      Name2Full?: string;
-      CorporateOwner?: string;
+interface EstatedResponse {
+  data?: {
+    owner?: {
+      name?: string;
+      second_name?: string;
+      owner_occupied?: string;
     };
-    ParsedPropertyAddress?: {
-      AddressLine1?: string;
-      City?: string;
-      State?: string;
-      PostalCode?: string;
+    parcel?: {
+      land_use?: string;
+      county_land_use_code?: string;
     };
-    Values?: {
-      AssessedValueTotal?: string;
-      MarketValueTotal?: string;
-    };
-    CurrentDeed?: {
-      SaleDate?: string;
-      SalePrice?: string;
-    };
-    Parcel?: {
-      LandUseCode?: string;
-      PropertyIndicatorCode?: string;
-    };
-  }>;
+    deeds?: Array<{
+      recording_date?: string;
+      document_type?: string;
+    }>;
+  };
+  warnings?: Array<{ code?: string; message?: string }>;
+  error?: { code?: string; title?: string; description?: string };
+  metadata?: { timestamp?: string };
 }
 
 export async function checkProperty(input: PropertyInput): Promise<PropertySignals> {
-  const licenseKey = process.env.PROPERTY_API_KEY;
+  // Support both Estated and Melissa keys via the same env var
+  // Set PROPERTY_API_KEY to your Estated token
+  const token = process.env.PROPERTY_API_KEY;
+  const sandbox = process.env.NODE_ENV !== "production" || process.env.PROPERTY_API_SANDBOX === "true";
 
-  if (!licenseKey) {
-    logger.info("property: Melissa API key not set — stub mode");
+  if (!token) {
+    logger.info("property: PROPERTY_API_KEY not set — stub mode");
     return {
       ownerName: null, ownershipYears: null,
       matchLevel: "unavailable", isCommercial: false, isVacant: false,
@@ -84,33 +76,42 @@ export async function checkProperty(input: PropertyInput): Promise<PropertySigna
     };
   }
 
+  const baseUrl = sandbox && process.env.NODE_ENV !== "production"
+    ? "https://sandbox.estated.com/v4/property"
+    : "https://apis.estated.com/v4/property";
+
   try {
     const params = new URLSearchParams({
-      id: licenseKey,
-      a1: input.line1,
+      token,
+      street_address: input.line1,
       city: input.city,
       state: input.state,
-      zip: input.postalCode,
-      cols: "GrpPropertyAddress,GrpOwner,GrpValues,GrpCurrentDeed,GrpParcel",
-      format: "JSON",
+      zip_code: input.postalCode,
     });
 
-    const res = await fetch(
-      `https://property.melissadata.net/v4/WEB/LookupProperty?${params}`,
-      {
-        headers: { Accept: "application/json" },
-        signal: AbortSignal.timeout(5000),
-      }
-    );
+    const res = await fetch(`${baseUrl}?${params}`, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(5000),
+    });
 
     if (!res.ok) {
-      throw new Error(`Melissa Property API ${res.status}`);
+      throw new Error(`Estated API ${res.status}: ${await res.text()}`);
     }
 
-    const data = await res.json() as MelissaPropertyResponse;
-    const record = data.Records?.[0];
+    const data = await res.json() as EstatedResponse;
 
-    if (!record) {
+    // API-level error
+    if (data.error) {
+      logger.warn("property: Estated error", { code: data.error.code, desc: data.error.description });
+      return {
+        ownerName: null, ownershipYears: null,
+        matchLevel: "unavailable", isCommercial: false, isVacant: false,
+        reasons: ["Property not found for this address"],
+      };
+    }
+
+    // No record found
+    if (!data.data?.owner && (data.warnings?.length ?? 0) > 0) {
       return {
         ownerName: null, ownershipYears: null,
         matchLevel: "unavailable", isCommercial: false, isVacant: false,
@@ -118,62 +119,54 @@ export async function checkProperty(input: PropertyInput): Promise<PropertySigna
       };
     }
 
-    // Result codes — AS = address found, AE = address error
-    const resultCodes = record.Results ?? "";
-    if (resultCodes.includes("AE") || resultCodes.includes("GE")) {
-      return {
-        ownerName: null, ownershipYears: null,
-        matchLevel: "unavailable", isCommercial: false, isVacant: false,
-        reasons: ["Address not found in Melissa property database"],
-      };
-    }
-
-    const ownerName = record.Owner?.Name1Full ??
-      record.Owner?.CorporateOwner ?? null;
-
+    const owner = data.data?.owner;
+    const ownerName = owner?.name ?? null;
     const matchLevel = ownerName
       ? scoreNameMatch(input.submittedName, ownerName)
       : "unavailable";
 
-    // Estimate ownership years from deed sale date
+    // Ownership years from most recent deed
     let ownershipYears: number | null = null;
-    const saleDate = record.CurrentDeed?.SaleDate;
-    if (saleDate && saleDate.length >= 4) {
-      const saleYear = parseInt(saleDate.slice(0, 4), 10);
-      if (!isNaN(saleYear) && saleYear > 1900) {
-        ownershipYears = new Date().getFullYear() - saleYear;
+    const deeds = data.data?.deeds ?? [];
+    const latestDeed = deeds.sort((a, b) =>
+      (b.recording_date ?? "").localeCompare(a.recording_date ?? "")
+    )[0];
+    if (latestDeed?.recording_date) {
+      const year = parseInt(latestDeed.recording_date.slice(0, 4), 10);
+      if (!isNaN(year) && year > 1900) {
+        ownershipYears = new Date().getFullYear() - year;
       }
     }
 
-    // Property type — Melissa land use codes
-    const landUse = (record.Parcel?.LandUseCode ?? "").toLowerCase();
-    const propIndicator = (record.Parcel?.PropertyIndicatorCode ?? "").toLowerCase();
-    const isCommercial = ["commercial", "industrial", "retail", "office"]
-      .some((t) => landUse.includes(t) || propIndicator.includes(t));
-
-    const isCorporate = !!record.Owner?.CorporateOwner;
+    // Commercial/vacant from land use
+    const landUse = (data.data?.parcel?.land_use ?? "").toLowerCase();
+    const isCommercial = ["commercial", "industrial", "retail", "office", "warehouse"]
+      .some((t) => landUse.includes(t));
     const isVacant = landUse.includes("vacant");
+    const isOwnerOccupied = owner?.owner_occupied === "YES";
 
     const reasons: string[] = [];
     if (matchLevel === "none" && ownerName) {
       reasons.push(`Property owner on record "${ownerName}" — does not match submitted name`);
     } else if (matchLevel === "partial" && ownerName) {
       reasons.push(`Partial name match with property record: ${ownerName}`);
+    } else if (matchLevel === "full") {
+      reasons.push(`✓ Name matches property owner record`);
+    }
+    if (!isOwnerOccupied && ownerName) {
+      reasons.push("Property does not appear to be owner-occupied");
     }
     if (isVacant) reasons.push("Property recorded as vacant");
     if (isCommercial) reasons.push("Address is a commercial property");
-    if (isCorporate && matchLevel !== "full") {
-      reasons.push("Property is corporate-owned — name match not possible");
-    }
 
-    logger.info("property: Melissa lookup complete", {
-      matchLevel, ownershipYears, isVacant, isCommercial,
+    logger.info("property: Estated lookup complete", {
+      matchLevel, ownershipYears, isVacant, isCommercial, isOwnerOccupied,
     });
 
     return { ownerName, ownershipYears, matchLevel, isCommercial, isVacant, reasons };
 
   } catch (err) {
-    logger.error("property: Melissa lookup failed", { error: String(err) });
+    logger.error("property: Estated lookup failed", { error: String(err) });
     return {
       ownerName: null, ownershipYears: null,
       matchLevel: "unavailable", isCommercial: false, isVacant: false,
