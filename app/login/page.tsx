@@ -14,6 +14,12 @@ function LoginForm() {
   const [error, setError] = useState("");
   const [focused, setFocused] = useState<string | null>(null);
 
+  // Clear form on mount to prevent browser autofill showing previous user
+  useEffect(() => {
+    setEmail("");
+    setPassword("");
+  }, []);
+
   useEffect(() => {
     if (status === "authenticated") router.replace("/orders/new");
   }, [status, router]);
@@ -129,7 +135,7 @@ function LoginForm() {
                     <input
                       type="email"
                       required
-                      autoComplete="email"
+                      autoComplete="off"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       onFocus={() => setFocused("email")}
@@ -154,7 +160,7 @@ function LoginForm() {
                   <input
                     type="password"
                     required
-                    autoComplete="current-password"
+                    autoComplete="new-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onFocus={() => setFocused("password")}
