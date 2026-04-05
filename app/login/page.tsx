@@ -100,10 +100,10 @@ function LoginForm() {
             }} />
 
             <div className="p-8">
-              <h2 className="text-white font-semibold text-xl mb-1" style={{ fontFamily: "'Georgia', serif" }}>
+              <h2 className="font-semibold text-xl mb-1" style={{ fontFamily: "'Georgia', serif", color: "#ffffff" }}>
                 Sales Rep Access
               </h2>
-              <p className="text-sm mb-8" style={{ color: "#8a9ab5" }}>
+              <p className="text-sm mb-8" style={{ color: "#a0b0c8" }}>
                 Sign in to verify and process orders
               </p>
 
@@ -120,7 +120,7 @@ function LoginForm() {
               <form onSubmit={handleSubmit} className="space-y-5">
                 {/* Email field */}
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: "#8a9ab5" }}>
+                  <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: "#b8c8de" }}>
                     Email Address
                   </label>
                   <div className="relative">
@@ -133,12 +133,12 @@ function LoginForm() {
                       onFocus={() => setFocused("email")}
                       onBlur={() => setFocused(null)}
                       placeholder="your@email.com"
-                      className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all duration-200"
+                      className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all duration-200 placeholder:text-slate-500"
                       style={{
-                        background: "rgba(255,255,255,0.06)",
-                        border: `1px solid ${focused === "email" ? "#cc1111" : "rgba(255,255,255,0.1)"}`,
-                        color: "white",
-                        boxShadow: focused === "email" ? "0 0 0 3px rgba(204,17,17,0.15)" : "none"
+                        background: "#1a2035",
+                        border: `1px solid ${focused === "email" ? "#cc1111" : "rgba(255,255,255,0.2)"}`,
+                        color: "#ffffff",
+                        boxShadow: focused === "email" ? "0 0 0 3px rgba(204,17,17,0.2)" : "none"
                       }}
                     />
                   </div>
@@ -146,7 +146,7 @@ function LoginForm() {
 
                 {/* Password field */}
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: "#8a9ab5" }}>
+                  <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: "#b8c8de" }}>
                     Password
                   </label>
                   <input
@@ -160,10 +160,10 @@ function LoginForm() {
                     placeholder="••••••••"
                     className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all duration-200"
                     style={{
-                      background: "rgba(255,255,255,0.06)",
-                      border: `1px solid ${focused === "password" ? "#cc1111" : "rgba(255,255,255,0.1)"}`,
-                      color: "white",
-                      boxShadow: focused === "password" ? "0 0 0 3px rgba(204,17,17,0.15)" : "none"
+                      background: "#1a2035",
+                      border: `1px solid ${focused === "password" ? "#cc1111" : "rgba(255,255,255,0.2)"}`,
+                      color: "#ffffff",
+                      boxShadow: focused === "password" ? "0 0 0 3px rgba(204,17,17,0.2)" : "none"
                     }}
                   />
                 </div>
