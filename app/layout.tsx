@@ -41,6 +41,35 @@ function UserMenu() {
   );
 }
 
+function AdminNav({ pathname }: { pathname: string }) {
+  const { data: session } = useSession();
+  const role = (session?.user as { role?: string } | undefined)?.role ?? "";
+
+  const visibleAdminItems = adminNavItems.filter((item) => {
+    if (!role || role === "reviewer") return false;
+    if (item.role === "superadmin") return role === "superadmin";
+    return role === "admin" || role === "superadmin";
+  });
+
+  if (!visibleAdminItems.length) return null;
+
+  return (
+    <>
+      <span className="text-white/30 mx-1">|</span>
+      {visibleAdminItems.map((item) => (
+        <Link key={item.href} href={item.href} className={clsx(
+          "px-3 py-2 rounded-md text-xs font-semibold transition-all",
+          pathname.startsWith(item.href)
+            ? "bg-white/90 text-navy-700 shadow"
+            : "text-white/90 hover:bg-white/20 hover:text-white"
+        )}>
+          {item.label}
+        </Link>
+      ))}
+    </>
+  );
+}
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
@@ -90,17 +119,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                             {item.label}
                           </Link>
                         ))}
-                        <span className="text-white/30 mx-1">|</span>
-                        {adminNavItems.map((item) => (
-                          <Link key={item.href} href={item.href} className={clsx(
-                            "px-3 py-2 rounded-md text-xs font-semibold transition-all",
-                            pathname.startsWith(item.href)
-                              ? "bg-white/90 text-navy-700 shadow"
-                              : "text-white/90 hover:bg-white/20 hover:text-white"
-                          )}>
-                            {item.label}
-                          </Link>
-                        ))}
+                        <AdminNav pathname={pathname} />
                       </nav>
                     )}
 
