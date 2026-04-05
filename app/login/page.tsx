@@ -44,8 +44,10 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col" style={{
-      background: "linear-gradient(90deg, #cc1111 0%, #b91c1c 20%, #ffffff 50%, #1e3a8a 80%, #1a2f6e 100%)"
+    <div className="min-h-screen flex flex-col relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-8 px-4" style={{
+      background: "linear-gradient(90deg, #cc1111 0%, #b91c1c 20%, #f8f8ff 50%, #1e3a8a 80%, #1a2f6e 100%)",
+      width: "100vw",
+      marginLeft: "calc(-50vw + 50%)",
     }}>
 
       <div className="relative z-10 flex flex-col flex-1 items-center justify-center px-4 py-12">
