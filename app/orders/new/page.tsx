@@ -8,6 +8,7 @@ import { RiskSummary } from "@/components/RiskSummary";
 import { DecisionModal } from "@/components/DecisionModal";
 import { ClaudeSummary } from "@/components/ClaudeSummary";
 import { RepPlaybook } from "@/components/RepPlaybook";
+import { OtpPanel } from "@/components/OtpPanel";
 import { IdentityPanel } from "@/components/panels/IdentityPanel";
 import { DevicePanel } from "@/components/panels/DevicePanel";
 import { PropertyPanel } from "@/components/panels/PropertyPanel";
@@ -120,6 +121,13 @@ export default function NewOrderPage() {
                 requiresOtp={(verification.overall as { requiresOtp?: boolean }).requiresOtp}
                 requiresDoc={(verification.overall as { requiresDocVerification?: boolean }).requiresDocVerification}
               />
+              {orderId && (
+                <OtpPanel
+                  orderId={orderId}
+                  phone={currentOrder?.contact?.phone ?? ""}
+                  required={!!(verification.overall as { requiresOtp?: boolean }).requiresOtp}
+                />
+              )}
               {currentOrder && <ClaudeSummary order={currentOrder} verification={verification} />}
             </div>
 
@@ -163,4 +171,5 @@ export default function NewOrderPage() {
     </div>
   );
 }
+
 
