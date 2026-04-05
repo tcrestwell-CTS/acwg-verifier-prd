@@ -14,7 +14,7 @@ const UpdateSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const { error } = await requireAuth("admin");
+  const { error } = await requireAuth("superadmin");
   if (error) return error;
 
   const audit = req.nextUrl.searchParams.get("audit") === "true";
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { session, error } = await requireAuth("admin");
+  const { session, error } = await requireAuth("superadmin");
   if (error) return error;
 
   let body: unknown;
