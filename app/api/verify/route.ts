@@ -69,7 +69,20 @@ export async function POST(req: NextRequest) {
           attempts: 2,
         }),
         withRetry(
-          () => checkPayment(order.paymentMeta),
+          () => checkPayment(order.paymentMeta, {
+            firstName: order.customer.firstName,
+            lastName: order.customer.lastName,
+            email: order.contact.email,
+            phone: order.contact.phone,
+            address: {
+              line1: billingAddr.line1,
+              city: billingAddr.city,
+              state: billingAddr.state,
+              postalCode: billingAddr.postalCode,
+            },
+            orderAmount: order.items.reduce((s: number, i: { qty: number; price: number }) => s + i.qty * i.price, 0),
+            ip: order.context?.ip,
+          }),
           { label: "payment-check", attempts: 2 }
         ),
         withRetry(
