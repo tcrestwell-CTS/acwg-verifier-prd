@@ -45,25 +45,15 @@ function LoginForm() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{
-      background: "linear-gradient(160deg, #0f0f0f 0%, #1a0a0a 40%, #0a0f1e 100%)"
+      background: "linear-gradient(90deg, #cc1111 0%, #b91c1c 20%, #ffffff 50%, #1e3a8a 80%, #1a2f6e 100%)"
     }}>
-      {/* Subtle grid overlay */}
-      <div className="absolute inset-0 opacity-5" style={{
-        backgroundImage: "linear-gradient(#cc1111 1px, transparent 1px), linear-gradient(90deg, #cc1111 1px, transparent 1px)",
-        backgroundSize: "60px 60px"
-      }} />
-
-      {/* Top accent line */}
-      <div className="relative z-10 h-1 w-full" style={{
-        background: "linear-gradient(90deg, #cc1111, #1e3a8a, #cc1111)"
-      }} />
 
       <div className="relative z-10 flex flex-col flex-1 items-center justify-center px-4 py-12">
 
         {/* Logo mark */}
         <div className="mb-10 flex flex-col items-center">
           <div className="relative mb-6">
-            <div className="absolute inset-0 rounded-full blur-2xl opacity-30" style={{
+            <div className="absolute inset-0 rounded-full blur-2xl opacity-50" style={{
               background: "radial-gradient(circle, #cc1111, transparent)"
             }} />
             <svg viewBox="0 0 80 80" className="w-20 h-20 relative" fill="none">
