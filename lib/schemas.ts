@@ -46,11 +46,15 @@ export const OrderPayloadSchema = z.object({
   shippingAddress: AddressSchema,
   items: z.array(OrderItemSchema).min(1, "At least one item is required"),
   paymentMeta: z.object({
-    // Populated from Stripe PaymentMethod after card check
+    // Populated from Stripe card check before verification runs
     cardLast4: z.string().optional(),
     bin: z.string().optional(),
     brand: z.string().optional(),
     stripePaymentMethodId: z.string().optional(),
+    stripeAvs: z.enum(["Y","N","P","U"]).optional(),
+    stripeCvv: z.enum(["M","N","U"]).optional(),
+    expMonth: z.number().optional(),
+    expYear: z.number().optional(),
   }).optional().default({}),
   context: z.object({
     ip: z.string().optional(),
