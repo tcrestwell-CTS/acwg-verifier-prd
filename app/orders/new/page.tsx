@@ -131,8 +131,21 @@ export default function NewOrderPage() {
                 />
               )}
               <StripeCardPanel
+                orderId={orderId ?? undefined}
                 billingZip={currentOrder?.billingAddress?.postalCode ?? ""}
                 onResult={(r) => setStripeAvs(r)}
+                onRescore={(r) => {
+                  // Merge rescored result back into verification state
+                  if (verification) {
+                    setVerification({
+                      ...verification,
+                      overall: {
+                        ...(verification.overall as object),
+                        ...r,
+                      } as typeof verification.overall,
+                    });
+                  }
+                }}
               />
               {currentOrder && <ClaudeSummary order={currentOrder} verification={verification} />}
             </div>
