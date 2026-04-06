@@ -257,11 +257,26 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
         </div>
       </div>
 
-      {/* Payment — Stripe Elements inline card collection */}
-      <StripeCardSection onToken={(pmId, last4, brand) => {
+      {/* Payment — Stripe Elements inline card collection + AVS/CVV */}
+      <StripeCardSection onToken={async (pmId, last4, brand) => {
         setValue("paymentMeta.stripePaymentMethodId", pmId);
         setValue("paymentMeta.cardLast4", last4);
         setValue("paymentMeta.brand", brand);
+        // Run AVS/CVV check immediately after tokenization
+        try {
+          const res = await fetch("/api/stripe-verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paymentMethodId: pmId }),
+          });
+          if (res.ok) {
+            const result = await res.json();
+            if (result.avs) setValue("paymentMeta.stripeAvs", result.avs);
+            if (result.cvv) setValue("paymentMeta.stripeCvv", result.cvv);
+          }
+        } catch {
+          // Non-fatal — AVS/CVV will be unavailable
+        }
       }} />
 
       {/* Context */}
