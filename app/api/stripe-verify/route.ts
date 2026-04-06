@@ -29,7 +29,11 @@ export async function POST(req: NextRequest) {
       payment_method: paymentMethodId,
       confirm: "true",
       usage: "off_session",
-      "payment_method_options[card][request_three_d_secure]": "automatic",
+      // Disable redirect-based payment methods — card only, no redirects
+      "automatic_payment_methods[enabled]": "true",
+      "automatic_payment_methods[allow_redirects]": "never",
+      // Expand payment_method so we get AVS/CVV checks back inline
+      "expand[]": "payment_method",
     });
 
     const res = await fetch("https://api.stripe.com/v1/setup_intents", {
