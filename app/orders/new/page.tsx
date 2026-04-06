@@ -167,12 +167,12 @@ export default function NewOrderPage() {
                   onDeny={() => setDecisionModal({ open: true, initialStatus: "denied" })}
                   isPending={decisionMutation.isPending}
                 />
+                {/* Advanced signal panels — inside sticky so they stay visible */}
+                {advancedSignals.identity   && <IdentityPanel  identity={advancedSignals.identity}  />}
+                {advancedSignals.property   && <PropertyPanel  property={advancedSignals.property}  />}
+                {advancedSignals.device     && <DevicePanel    device={advancedSignals.device}       />}
+                {advancedSignals.phoneIntel && <PhonePanel     phone={advancedSignals.phoneIntel}   />}
               </div>
-              {/* Advanced signal panels — shown when features enabled */}
-              {advancedSignals.identity  && <IdentityPanel  identity={advancedSignals.identity}  />}
-              {advancedSignals.property  && <PropertyPanel  property={advancedSignals.property}  />}
-              {advancedSignals.device    && <DevicePanel    device={advancedSignals.device}       />}
-              {advancedSignals.phoneIntel && <PhonePanel    phone={advancedSignals.phoneIntel}   />}
             </div>
           </div>
 
