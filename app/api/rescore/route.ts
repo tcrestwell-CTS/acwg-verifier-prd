@@ -143,7 +143,7 @@ export async function POST(req: NextRequest) {
       action: "rescore",
       actor: (session as { user?: { email?: string } } | null)?.user?.email ?? "system",
       orderId,
-      details: { avs, cvv, scoreDelta: delta, newScore: score, newDecision: decision },
+      payload: { avs, cvv, scoreDelta: delta, newScore: score, newDecision: decision },
     });
 
     logger.info("rescore complete", { orderId, avs, cvv, delta, score, decision });
