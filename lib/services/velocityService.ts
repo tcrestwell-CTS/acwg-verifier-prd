@@ -25,7 +25,7 @@ interface VelocityInput {
 }
 
 const HIGH_VALUE_THRESHOLD = 500;   // orders above this get extra scrutiny
-const OTP_THRESHOLD = 1500;         // orders above this require OTP
+const OTP_THRESHOLD = 5000;         // orders above this require OTP
 const CARD_VELOCITY_24H = 3;        // same card 3+ orders in 24h
 const CARD_VELOCITY_7D = 8;
 
