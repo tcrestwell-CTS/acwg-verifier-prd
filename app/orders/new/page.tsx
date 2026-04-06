@@ -10,6 +10,7 @@ import { ClaudeSummary } from "@/components/ClaudeSummary";
 import { RepPlaybook } from "@/components/RepPlaybook";
 import { OtpPanel } from "@/components/OtpPanel";
 import { StripeCardPanel } from "@/components/StripeCardPanel";
+import { VerifyingOverlay } from "@/components/VerifyingOverlay";
 import { IdentityPanel } from "@/components/panels/IdentityPanel";
 import { DevicePanel } from "@/components/panels/DevicePanel";
 import { PropertyPanel } from "@/components/panels/PropertyPanel";
@@ -176,6 +177,7 @@ export default function NewOrderPage() {
           )}
         </div>
       )}
+      <VerifyingOverlay visible={verifyMutation.isPending} />
     </div>
   );
 }
