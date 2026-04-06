@@ -2,6 +2,7 @@
 
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import React from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { useState as useStripeState } from "react";
@@ -258,7 +259,7 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
       </div>
 
       {/* Payment — Stripe Elements inline card collection + AVS/CVV */}
-      <StripeCardSection onToken={async (pmId, last4, brand) => {
+      <StripeCardSection tokenizeRef={tokenizeRef} onToken={async (pmId, last4, brand) => {
         setValue("paymentMeta.stripePaymentMethodId", pmId);
         setValue("paymentMeta.cardLast4", last4);
         setValue("paymentMeta.brand", brand);
@@ -294,10 +295,23 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
         </div>
       </div>
 
-      {/* Submit */}
+      {/* Submit — tokenizes card then runs verification in one click */}
       <div className="flex justify-end">
-        <button type="submit" disabled={isLoading} className="btn-primary px-8 py-3 text-base">
-          {isLoading ? (
+        <button
+          type="button"
+          disabled={isLoading || isSubmitting}
+          className="btn-primary px-8 py-3 text-base"
+          onClick={handleSubmit(async (data) => {
+            // Step 1: tokenize card if present
+            if (tokenizeRef.current) {
+              const ok = await tokenizeRef.current();
+              if (!ok) return; // card error — don't proceed
+            }
+            // Step 2: run verification
+            await onSubmit(data);
+          })}
+        >
+          {isLoading || isSubmitting ? (
             <><LoadingSpinner size="sm" /> Running Verification…</>
           ) : (
             <>
@@ -326,33 +340,40 @@ const ELEMENT_STYLE = {
   },
 };
 
-function StripeCardInner({ onToken }: { onToken: (pmId: string, last4: string, brand: string) => void }) {
+function StripeCardInner({ onToken, tokenizeRef }: {
+  onToken: (pmId: string, last4: string, brand: string) => void;
+  tokenizeRef?: React.MutableRefObject<(() => Promise<boolean>) | null>;
+}) {
   const stripe = useStripe();
   const elements = useElements();
   const [status, setStatus] = useStripeState<"idle" | "tokenizing" | "done" | "error">("idle");
   const [message, setMessage] = useStripeState("");
 
-  const tokenize = async () => {
-    if (!stripe || !elements) return;
-    setStatus("tokenizing");
+  const tokenize = async (): Promise<boolean> => {
+    if (!stripe || !elements) return true; // no card entered — skip
     const cardNumber = elements.getElement(CardNumberElement);
-    if (!cardNumber) return;
+    if (!cardNumber) return true; // no card mounted — skip
+    setStatus("tokenizing");
     const { error, paymentMethod } = await stripe.createPaymentMethod({ type: "card", card: cardNumber });
     if (error) {
       setStatus("error");
       setMessage(error.message ?? "Card error");
-    } else {
-      onToken(paymentMethod.id, paymentMethod.card?.last4 ?? "", paymentMethod.card?.brand ?? "");
-      setStatus("done");
-      setMessage(`✓ ${paymentMethod.card?.brand?.toUpperCase()} ending ${paymentMethod.card?.last4} ready`);
+      return false;
     }
+    onToken(paymentMethod.id, paymentMethod.card?.last4 ?? "", paymentMethod.card?.brand ?? "");
+    setStatus("done");
+    setMessage(`✓ ${paymentMethod.card?.brand?.toUpperCase()} ending ${paymentMethod.card?.last4} secured`);
+    return true;
   };
+
+  // Expose tokenize to parent form via ref
+  if (tokenizeRef) tokenizeRef.current = tokenize;
 
   return (
     <div className="space-y-3">
       <div>
         <label className="form-label">Card Number</label>
-        <div className="form-input py-3"><CardNumberElement options={ELEMENT_STYLE} onChange={() => setStatus("idle")} /></div>
+        <div className="form-input py-3"><CardNumberElement options={ELEMENT_STYLE} onChange={() => { if (status !== "idle") setStatus("idle"); }} /></div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -364,17 +385,14 @@ function StripeCardInner({ onToken }: { onToken: (pmId: string, last4: string, b
           <div className="form-input py-3"><CardCvcElement options={ELEMENT_STYLE} /></div>
         </div>
       </div>
-      <button type="button" onClick={tokenize} disabled={status === "tokenizing" || status === "done"}
-        className={`btn-secondary w-full text-sm ${status === "done" ? "border-green-300 text-green-700 bg-green-50" : ""}`}>
-        {status === "tokenizing" ? "Securing card…" : status === "done" ? message : "Secure Card for Verification"}
-      </button>
+      {status === "done" && <p className="text-xs text-green-600 font-medium">{message}</p>}
       {status === "error" && <p className="text-xs text-red-600">{message}</p>}
       <p className="text-xs text-slate-400 text-center">🔒 Card tokenized by Stripe — number never stored</p>
     </div>
   );
 }
 
-function StripeCardSection({ onToken }: { onToken: (pmId: string, last4: string, brand: string) => void }) {
+function StripeCardSection({ onToken, tokenizeRef }: { onToken: (pmId: string, last4: string, brand: string) => void; tokenizeRef?: React.MutableRefObject<(() => Promise<boolean>) | null>; }) {
   if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
     return (
       <div className="card p-6 border border-slate-200">
@@ -390,7 +408,7 @@ function StripeCardSection({ onToken }: { onToken: (pmId: string, last4: string,
         Enter the card details provided by the customer. Secure the card before running verification so AVS and CVV are included in the risk assessment.
       </p>
       <Elements stripe={stripePromise}>
-        <StripeCardInner onToken={onToken} />
+        <StripeCardInner onToken={onToken} tokenizeRef={tokenizeRef} />
       </Elements>
     </div>
   );
