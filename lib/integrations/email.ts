@@ -147,16 +147,29 @@ async function smtpVerify(email: string, domain: string): Promise<{
 
 interface IPQSEmailResponse {
   success?: boolean;
+  message?: string;
   fraud_score?: number;
   valid?: boolean;
   disposable?: boolean;
   smtp_score?: number;
+  deliverability?: string;
+  catch_all?: boolean;
   overall_score?: number;
+  dns_valid?: boolean;
+  mx_records?: string[];
+  first_name?: string;
+  generic?: boolean;
+  common?: boolean;
   recent_abuse?: boolean;
   leaked?: boolean;
   suspect?: boolean;
+  honeypot?: boolean;
+  frequent_complainer?: boolean;
+  spam_trap_score?: string;
   domain_velocity?: string;
-  message?: string;
+  spf_record?: boolean;
+  dmarc_record?: boolean;
+  risky_tld?: boolean;
 }
 
 async function checkViaIPQS(email: string): Promise<IPQSEmailResponse | null> {
