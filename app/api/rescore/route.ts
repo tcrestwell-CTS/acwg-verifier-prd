@@ -31,14 +31,14 @@ export async function POST(req: NextRequest) {
     // Load the existing verification result
     const order = await db.order.findUnique({
       where: { id: orderId },
-      include: { verificationResult: true },
+      include: { verification: true },
     });
 
-    if (!order?.verificationResult) {
+    if (!order?.verification) {
       return NextResponse.json({ error: "Order or verification not found" }, { status: 404 });
     }
 
-    const existing = order.verificationResult.overall as {
+    const existing = order.verification.overall as {
       score: number;
       decision: string;
       reasons: string[];
