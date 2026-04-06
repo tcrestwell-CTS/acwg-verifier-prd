@@ -19,7 +19,6 @@ function FieldError({ message }: { message?: string }) {
 
 export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
   const [sameAddress, setSameAddress] = useState(true);
-  const [panWarning, setPanWarning] = useState(false);
 
   const {
     register,
@@ -259,41 +258,16 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
         </div>
       </div>
 
-      {/* Payment */}
-      <div className="card p-6">
-        <h2 className="section-header">Payment Information</h2>
-        <p className="text-xs text-slate-500 mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-          ⚠ Do not enter full card numbers. Only last 4 digits and BIN are accepted.
+      {/* Payment — card details entered via Stripe panel after verification runs */}
+      <div className="card p-6 border border-blue-100 bg-blue-50/30">
+        <h2 className="section-header">Payment Verification</h2>
+        <p className="text-sm text-slate-600">
+          Card details are collected securely via the <strong>Card Verification panel</strong> that appears after running verification.
+          The rep enters the full card number there — it is tokenized by Stripe and never stored.
         </p>
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <label className="form-label" htmlFor="cardLast4">Last 4 Digits</label>
-            <input id="cardLast4" className="form-input font-mono" placeholder="4242" maxLength={4} inputMode="numeric"
-              {...register("paymentMeta.cardLast4", {
-                onChange: (e) => {
-                  if (e.target.value.length > 4) setPanWarning(true);
-                  else setPanWarning(false);
-                },
-              })} />
-            {panWarning && <p className="text-xs text-red-600 mt-1 font-medium">⛔ Last 4 digits only — do not enter full card number.</p>}
-            <FieldError message={errors.paymentMeta?.cardLast4?.message} />
-          </div>
-          <div>
-            <label className="form-label" htmlFor="bin">BIN (6 digits)</label>
-            <input id="bin" className="form-input font-mono" placeholder="424242" maxLength={6} inputMode="numeric" {...register("paymentMeta.bin")} />
-            <FieldError message={errors.paymentMeta?.bin?.message} />
-          </div>
-          <div>
-            <label className="form-label" htmlFor="brand">Card Brand</label>
-            <select id="brand" className="form-input" {...register("paymentMeta.brand")}>
-              <option value="">— Select —</option>
-              <option value="Visa">Visa</option>
-              <option value="Mastercard">Mastercard</option>
-              <option value="Amex">American Express</option>
-              <option value="Discover">Discover</option>
-            </select>
-          </div>
-        </div>
+        <p className="text-xs text-slate-400 mt-2">
+          AVS and CVV results will appear in the results panel after the card check is run.
+        </p>
       </div>
 
       {/* Context */}
