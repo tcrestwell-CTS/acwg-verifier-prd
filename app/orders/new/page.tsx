@@ -109,11 +109,6 @@ export default function NewOrderPage() {
       {!verification ? (
         <div className="space-y-4">
           <OrderForm onSubmit={verifyMutation.mutateAsync} isLoading={verifyMutation.isPending} />
-          {/* Stripe card panel — collect card before running verify */}
-          <StripeCardPanel
-            billingZip=""
-            onResult={(r) => setStripeCardResult(r as typeof stripeCardResult)}
-          />
         </div>
       ) : (
         <div className="space-y-6 animate-fade-in">
