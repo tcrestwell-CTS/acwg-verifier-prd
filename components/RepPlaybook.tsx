@@ -22,7 +22,7 @@ function derivePlaybook(
   if (requiresOtp) {
     actions.push({
       priority: "required",
-      action: "Send OTP verification code to customer's phone",
+      action: "Send SMS verification code to customer's phone",
       script: `"I need to verify your identity. I'm sending a code to the phone number on file. Please read it back to me when you receive it."`,
     });
   }
@@ -31,7 +31,7 @@ function derivePlaybook(
   if (requiresDoc) {
     actions.push({
       priority: "required",
-      action: "Request photo ID and card verification",
+      action: "Request government-issued photo ID",
       script: `"For orders of this size, we require a quick ID verification. I'll send you a secure link to upload a photo of your ID and the last 4 digits of your card. This only takes 2 minutes."`,
     });
   }
@@ -49,7 +49,7 @@ function derivePlaybook(
   if (payment.cvv === "N" || payment.cvv === "U") {
     actions.push({
       priority: "required",
-      action: "Request card CVV re-entry or alternative payment",
+      action: "Re-confirm card security code (CVV)",
       script: `"The security code on your card didn't verify. Can you double-check the 3-digit code on the back of the card?"`,
     });
   }
@@ -58,7 +58,7 @@ function derivePlaybook(
   if (phone.type === "voip") {
     actions.push({
       priority: "required",
-      action: "VoIP number detected — confirm callback number",
+      action: "Confirm a mobile number for verification",
       script: `"I see you're calling from an internet-based number. Do you have a mobile number we can reach you at? We'll need to send a verification code."`,
     });
   }
@@ -67,7 +67,7 @@ function derivePlaybook(
   if (email.disposable) {
     actions.push({
       priority: "required",
-      action: "Request permanent email address",
+      action: "Request a personal or business email address",
       script: `"The email address provided appears to be temporary. Can I get a personal or business email address for your order confirmation?"`,
     });
   }
@@ -76,7 +76,7 @@ function derivePlaybook(
   if (dist > 400) {
     actions.push({
       priority: "required",
-      action: "Ask purpose of cross-region shipping",
+      action: "Confirm reason for out-of-region shipping",
       script: `"I notice the shipping address is in a different area than your billing address. Can you tell me more about where this is being shipped?"`,
     });
   } else if (dist > 50) {
@@ -93,7 +93,7 @@ function derivePlaybook(
   if (overall_.score && overall_.score > 20) {
     actions.push({
       priority: "recommended",
-      action: `Ask: "Have you ordered from American Carpet Wholesalers before?"`,
+      action: "Confirm if customer is a returning buyer",
     });
   }
 
@@ -101,7 +101,7 @@ function derivePlaybook(
   if (payment.binType === "prepaid") {
     actions.push({
       priority: "recommended",
-      action: "Note prepaid card — suggest alternative payment for large orders",
+      action: "Suggest credit or debit card for large orders",
       script: `"We accept prepaid cards, but for large orders we typically prefer a credit or debit card. Would you like to use a different payment method?"`,
     });
   }
@@ -134,7 +134,7 @@ export function RepPlaybook({ verification, requiresOtp = false, requiresDoc = f
     <div className="card overflow-hidden">
       <div className="px-5 py-4 border-b border-slate-200 bg-slate-50">
         <h3 className="font-semibold text-slate-900 text-sm flex items-center gap-2">
-          📋 Rep Action Checklist
+          📋 Action Checklist
           {required.length > 0 && (
             <span className="badge badge-fail">{required.length} Required</span>
           )}
@@ -158,7 +158,7 @@ export function RepPlaybook({ verification, requiresOtp = false, requiresDoc = f
             {action.script && (
               <div className="px-4 pb-3 ml-8">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <p className="text-xs font-semibold text-blue-700 mb-1">📞 Say to customer:</p>
+                  <p className="text-xs font-semibold text-blue-700 mb-1 uppercase tracking-wide">Script</p>
                   <p className="text-sm text-blue-900 italic">{action.script}</p>
                 </div>
               </div>
@@ -183,7 +183,7 @@ export function RepPlaybook({ verification, requiresOtp = false, requiresDoc = f
             {action.script && (
               <div className="px-4 pb-3 ml-8">
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                  <p className="text-xs font-semibold text-amber-700 mb-1">📞 Say to customer:</p>
+                  <p className="text-xs font-semibold text-amber-700 mb-1 uppercase tracking-wide">Script</p>
                   <p className="text-sm text-amber-900 italic">{action.script}</p>
                 </div>
               </div>
