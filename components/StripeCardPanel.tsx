@@ -24,6 +24,8 @@ interface AvsResult {
   cvv: "M" | "N" | "U";
   last4?: string;
   brand?: string;
+  expMonth?: number;
+  expYear?: number;
   checks?: {
     avsStreet?: string | null;
     avsZip?: string | null;
