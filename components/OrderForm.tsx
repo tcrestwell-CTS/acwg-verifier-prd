@@ -229,16 +229,12 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
                 <input id={`sku-${idx}`} className="form-input text-xs" placeholder="ORD-2026-001" {...register(`items.${idx}.sku`)} />
                 <FieldError message={errors.items?.[idx]?.sku?.message} />
               </div>
-              <div className="col-span-5">
+              <div className="col-span-7">
                 <label className="form-label text-xs" htmlFor={`name-${idx}`}>Order Name</label>
                 <input id={`name-${idx}`} className="form-input text-xs" placeholder="Caribbean Cruise Deposit" {...register(`items.${idx}.name`)} />
                 <FieldError message={errors.items?.[idx]?.name?.message} />
               </div>
-              <div className="col-span-2">
-                <label className="form-label text-xs" htmlFor={`qty-${idx}`}>Qty</label>
-                <input id={`qty-${idx}`} type="number" min={1} className="form-input text-xs" {...register(`items.${idx}.qty`, { valueAsNumber: true })} />
-                <FieldError message={errors.items?.[idx]?.qty?.message} />
-              </div>
+
               <div className="col-span-2">
                 <label className="form-label text-xs" htmlFor={`price-${idx}`}>Price ($)</label>
                 <input id={`price-${idx}`} type="number" min={0.01} step={0.01} className="form-input text-xs" {...register(`items.${idx}.price`, { valueAsNumber: true })} />
