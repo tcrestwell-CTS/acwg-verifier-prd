@@ -173,6 +173,23 @@ export function runRiskEngine(
     reasons.push("Email domain risk elevated");
   }
 
+  // Email age — recently created addresses are high risk
+  const firstSeen = (v.email as { firstSeenDaysAgo?: number | null }).firstSeenDaysAgo;
+  if (firstSeen !== null && firstSeen !== undefined) {
+    if (firstSeen <= 1) {
+      components.email += 30;
+      reasons.push("Email created today or yesterday — extremely suspicious for a purchase");
+      requiresOtp = true;
+    } else if (firstSeen <= 7) {
+      components.email += 20;
+      reasons.push(`Email address only ${firstSeen} days old — created very recently`);
+      requiresOtp = true;
+    } else if (firstSeen <= 30) {
+      components.email += 10;
+      reasons.push(`Email address ${firstSeen} days old — less than one month`);
+    }
+  }
+
   // ── Payment checks ──────────────────────────────────────────────────────
 
   if (v.payment.avs === "N" || v.payment.avs === "U") {
