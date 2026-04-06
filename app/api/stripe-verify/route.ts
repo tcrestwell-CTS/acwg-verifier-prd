@@ -97,12 +97,17 @@ export async function POST(req: NextRequest) {
       avs, cvv,
     });
 
+    // Extract BIN from funding data if available, otherwise from exp (not available)
+    // Stripe returns last4 and brand; BIN requires the full number which we never store
+    // We pass last4+brand back so the order record can be enriched
     return NextResponse.json({
       avs,
       cvv,
       status: intent.status,
       last4: card?.last4,
       brand: card?.brand,
+      expMonth: card?.exp_month,
+      expYear: card?.exp_year,
       checks: { avsStreet, avsZip, cvvCheck },
     });
 
