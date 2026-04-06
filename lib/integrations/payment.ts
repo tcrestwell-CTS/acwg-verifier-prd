@@ -14,6 +14,11 @@ interface PaymentMeta {
   cardLast4?: string;
   bin?: string;
   brand?: string;
+  stripePaymentMethodId?: string;
+  stripeAvs?: "Y" | "N" | "P" | "U";  // pre-collected from Stripe before verify
+  stripeCvv?: "M" | "N" | "U";
+  expMonth?: number;
+  expYear?: number;
 }
 
 interface BillingContext {
@@ -144,6 +149,37 @@ export async function checkPayment(
   billing?: BillingContext
 ): Promise<PaymentCheckResult> {
   const reasons: string[] = [];
+
+  // If Stripe AVS/CVV was already collected before verification, use it directly
+  if (meta.stripeAvs !== undefined && meta.stripeCvv !== undefined) {
+    const avs = meta.stripeAvs;
+    const cvv = meta.stripeCvv;
+
+    if (avs === "Y") reasons.push("✓ AVS full match — billing address confirmed by card issuer");
+    else if (avs === "N") reasons.push("AVS mismatch — billing address does not match card issuer records");
+    else if (avs === "P") reasons.push("AVS partial match — ZIP matched but street address did not");
+    else reasons.push("AVS unavailable — card issuer did not return address verification");
+
+    if (cvv === "M") reasons.push("✓ CVV matched — security code confirmed");
+    else if (cvv === "N") reasons.push("CVV mismatch — security code rejected by card issuer");
+    else reasons.push("CVV not verified");
+
+    if (meta.brand && meta.cardLast4) reasons.push(`Card: ${meta.brand} ending ${meta.cardLast4}`);
+
+    // Still run BIN lookup for card type/country
+    let binCountry: string | undefined;
+    let binType: PaymentCheckResult["binType"] = "unknown";
+    if (meta.bin && meta.bin.length >= 6) {
+      const binData = await lookupBin(meta.bin);
+      binCountry = binData.country;
+      if (binData.prepaid) { binType = "prepaid"; reasons.push("Prepaid card — higher chargeback risk"); }
+      else if (binData.type === "debit") binType = "debit";
+      else if (binData.type === "credit") binType = "credit";
+      if (binCountry && binCountry !== "US") reasons.push(`Card issued in ${binCountry} — international card`);
+    }
+
+    return { avs, cvv, binCountry, binType, reasons };
+  }
 
   if (!meta.cardLast4 && !meta.bin) {
     return {
