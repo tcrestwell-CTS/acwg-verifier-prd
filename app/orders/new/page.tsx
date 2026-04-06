@@ -9,7 +9,6 @@ import { DecisionModal } from "@/components/DecisionModal";
 import { ClaudeSummary } from "@/components/ClaudeSummary";
 import { RepPlaybook } from "@/components/RepPlaybook";
 import { OtpPanel } from "@/components/OtpPanel";
-import { StripeCardPanel } from "@/components/StripeCardPanel";
 import { IdentityPanel } from "@/components/panels/IdentityPanel";
 import { DevicePanel } from "@/components/panels/DevicePanel";
 import { PropertyPanel } from "@/components/panels/PropertyPanel";
@@ -28,8 +27,8 @@ export default function NewOrderPage() {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [currentOrder, setCurrentOrder] = useState<OrderPayload | null>(null);
   const [verification, setVerification] = useState<VerificationResult | null>(null);
-  const [stripeAvs, setStripeAvs] = useState<{ avs: string; cvv: string } | null>(null);
-  const [stripeCardResult, setStripeCardResult] = useState<{
+  // stripeCardResult now handled in OrderForm
+  const [_unused, _setUnused] = useState<{
     avs: "Y"|"N"|"P"|"U"; cvv: "M"|"N"|"U";
     last4?: string; brand?: string; expMonth?: number; expYear?: number;
   } | null>(null);
