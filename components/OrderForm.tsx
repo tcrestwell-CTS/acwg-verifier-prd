@@ -23,6 +23,11 @@ function FieldError({ message }: { message?: string }) {
 
 export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
   const tokenizeRef = React.useRef<(() => Promise<boolean>) | null>(null);
+  // Store Stripe result outside RHF — setValue is not synchronously readable via getValues in same tick
+  const stripeDataRef = React.useRef<{
+    pmId?: string; last4?: string; brand?: string;
+    avs?: string; cvv?: string;
+  }>({});
   const [sameAddress, setSameAddress] = useState(true);
 
   const {
@@ -261,6 +266,9 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
 
       {/* Payment — Stripe Elements inline card collection + AVS/CVV */}
       <StripeCardSection tokenizeRef={tokenizeRef} onToken={(pmId, last4, brand, avs, cvv) => {
+        // Store in ref for immediate access in submit handler
+        stripeDataRef.current = { pmId, last4, brand, avs, cvv };
+        // Also update form state for display purposes
         setValue("paymentMeta.stripePaymentMethodId", pmId);
         setValue("paymentMeta.cardLast4", last4);
         setValue("paymentMeta.brand", brand);
@@ -289,15 +297,26 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
           type="button"
           disabled={isLoading || isSubmitting}
           className="btn-primary px-8 py-3 text-base"
-          onClick={handleSubmit(async () => {
+          onClick={handleSubmit(async (data) => {
             // Step 1: tokenize card + run AVS/CVV (awaited fully)
             if (tokenizeRef.current) {
               const ok = await tokenizeRef.current();
               if (!ok) return; // card error — don't proceed
             }
-            // Step 2: get fresh form values AFTER tokenize sets stripeAvs/stripeCvv
-            const freshData = getValues();
-            await onSubmit(freshData);
+            // Step 2: merge stripe ref data directly into payload — bypasses RHF sync issue
+            const sd = stripeDataRef.current;
+            const payload = {
+              ...data,
+              paymentMeta: {
+                ...data.paymentMeta,
+                ...(sd.pmId ? { stripePaymentMethodId: sd.pmId } : {}),
+                ...(sd.last4 ? { cardLast4: sd.last4 } : {}),
+                ...(sd.brand ? { brand: sd.brand } : {}),
+                ...(sd.avs ? { stripeAvs: sd.avs } : {}),
+                ...(sd.cvv ? { stripeCvv: sd.cvv } : {}),
+              },
+            };
+            await onSubmit(payload as typeof data);
           })}
         >
           {isLoading || isSubmitting ? (
