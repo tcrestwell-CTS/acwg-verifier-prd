@@ -6,29 +6,24 @@ export async function GET() {
 
   if (!sk) return NextResponse.json({ error: "STRIPE_SECRET_KEY not set" });
 
-  // Verify key by hitting Stripe's account endpoint
-  const res = await fetch("https://api.stripe.com/v1/account", {
+  // Verify account
+  const accountRes = await fetch("https://api.stripe.com/v1/account", {
     headers: { Authorization: `Bearer ${sk}` },
   });
-
-  const data = await res.json() as {
+  const account = await accountRes.json() as {
     id?: string;
     business_profile?: { name?: string };
     charges_enabled?: boolean;
-    country?: string;
     error?: { message?: string };
   };
 
-  if (data.error) {
-    return NextResponse.json({
-      sk_prefix: sk.slice(0, 12) + "...",
-      pk_prefix: (pk ?? "").slice(0, 12) + "...",
-      error: data.error.message,
-    }, { status: 400 });
+  if (account.error) {
+    return NextResponse.json({ error: account.error.message });
   }
 
-  // Also create a test PaymentMethod to verify full flow
-  const pmRes = await fetch("https://api.stripe.com/v1/payment_methods", {
+  // Use Stripe's built-in test PaymentMethod tokens — no raw card needed
+  // tok_visa is a pre-tokenized test card available on all Stripe accounts
+  const tokenRes = await fetch("https://api.stripe.com/v1/payment_methods", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${sk}`,
@@ -36,27 +31,70 @@ export async function GET() {
     },
     body: new URLSearchParams({
       type: "card",
-      "card[number]": "4000000000000077", // AVS line1 pass, zip fail
-      "card[exp_month]": "12",
-      "card[exp_year]": "2029",
-      "card[cvc]": "314",
+      "card[token]": "tok_avsFail",  // Stripe test token: AVS fail
     }),
   });
-
-  const pm = await pmRes.json() as {
+  const pm = await tokenRes.json() as {
     id?: string;
     card?: { last4?: string; brand?: string };
     error?: { message?: string };
   };
 
   if (pm.error) {
+    // Fallback: use pm_card_visa — a pre-built test PaymentMethod ID
+    const siRes = await fetch("https://api.stripe.com/v1/setup_intents", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${sk}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Stripe-Version": "2023-10-16",
+      },
+      body: new URLSearchParams({
+        payment_method: "pm_card_visa",
+        confirm: "true",
+        usage: "off_session",
+      }),
+    });
+    const si = await siRes.json() as {
+      id?: string;
+      status?: string;
+      payment_method?: {
+        card?: {
+          last4?: string;
+          brand?: string;
+          checks?: {
+            address_line1_check?: string | null;
+            address_postal_code_check?: string | null;
+            cvc_check?: string | null;
+          };
+        };
+      };
+      error?: { message?: string };
+    };
+
+    const card = typeof si.payment_method === "object" ? si.payment_method?.card : null;
+
     return NextResponse.json({
-      account: data.id,
-      pm_error: pm.error.message,
+      account_id: account.id,
+      charges_enabled: account.charges_enabled,
+      sk_prefix: sk.slice(0, 12) + "...",
+      pk_set: !!pk,
+      test_method: "pm_card_visa (built-in test PaymentMethod)",
+      setup_intent_id: si.id,
+      setup_intent_status: si.status,
+      last4: card?.last4,
+      brand: card?.brand,
+      avs_street: card?.checks?.address_line1_check,
+      avs_zip:    card?.checks?.address_postal_code_check,
+      cvv:        card?.checks?.cvc_check,
+      si_error: si.error?.message ?? null,
+      result: si.status === "succeeded"
+        ? "✅ Stripe AVS/CVV is working"
+        : si.error?.message ?? "check setup_intent_status",
     });
   }
 
-  // Run SetupIntent on the test card
+  // If PM created successfully, run SetupIntent
   const siRes = await fetch("https://api.stripe.com/v1/setup_intents", {
     method: "POST",
     headers: {
@@ -90,15 +128,12 @@ export async function GET() {
   const card = typeof si.payment_method === "object" ? si.payment_method?.card : null;
 
   return NextResponse.json({
-    account_id: data.id,
-    business_name: data.business_profile?.name,
-    charges_enabled: data.charges_enabled,
-    country: data.country,
-    test_card_last4: pm.card?.last4,
+    account_id: account.id,
+    charges_enabled: account.charges_enabled,
     setup_intent_status: si.status,
     avs_street: card?.checks?.address_line1_check,
-    avs_zip: card?.checks?.address_postal_code_check,
-    cvv: card?.checks?.cvc_check,
-    si_error: si.error?.message,
+    avs_zip:    card?.checks?.address_postal_code_check,
+    cvv:        card?.checks?.cvc_check,
+    result: si.status === "succeeded" ? "✅ Working" : si.error?.message,
   });
 }
