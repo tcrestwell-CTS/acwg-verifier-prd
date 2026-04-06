@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
       cardBrand: brand,
       rescored: true,
       rescoredAt: new Date().toISOString(),
-      rescoredBy: session?.user?.email,
+      rescoredBy: (session as { user?: { email?: string } } | null)?.user?.email,
     };
 
     // Update DB
@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
 
     await writeAuditLog({
       action: "rescore",
-      actor: session?.user?.email ?? "system",
+      actor: (session as { user?: { email?: string } } | null)?.user?.email ?? "system",
       orderId,
       details: { avs, cvv, scoreDelta: delta, newScore: score, newDecision: decision },
     });
