@@ -28,8 +28,7 @@ export default function NewOrderPage() {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [currentOrder, setCurrentOrder] = useState<OrderPayload | null>(null);
   const [verification, setVerification] = useState<VerificationResult | null>(null);
-  // stripeCardResult now handled in OrderForm
-  const [_unused, _setUnused] = useState<{
+  const [stripeCardResult, setStripeCardResult] = useState<{
     avs: "Y"|"N"|"P"|"U"; cvv: "M"|"N"|"U";
     last4?: string; brand?: string; expMonth?: number; expYear?: number;
   } | null>(null);
