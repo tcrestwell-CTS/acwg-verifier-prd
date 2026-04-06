@@ -260,25 +260,12 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
       </div>
 
       {/* Payment — Stripe Elements inline card collection + AVS/CVV */}
-      <StripeCardSection tokenizeRef={tokenizeRef} onToken={async (pmId, last4, brand) => {
+      <StripeCardSection tokenizeRef={tokenizeRef} onToken={(pmId, last4, brand, avs, cvv) => {
         setValue("paymentMeta.stripePaymentMethodId", pmId);
         setValue("paymentMeta.cardLast4", last4);
         setValue("paymentMeta.brand", brand);
-        // Run AVS/CVV check immediately after tokenization
-        try {
-          const res = await fetch("/api/stripe-verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ paymentMethodId: pmId }),
-          });
-          if (res.ok) {
-            const result = await res.json();
-            if (result.avs) setValue("paymentMeta.stripeAvs", result.avs);
-            if (result.cvv) setValue("paymentMeta.stripeCvv", result.cvv);
-          }
-        } catch {
-          // Non-fatal — AVS/CVV will be unavailable
-        }
+        if (avs) setValue("paymentMeta.stripeAvs", avs as "Y"|"N"|"P"|"U");
+        if (cvv) setValue("paymentMeta.stripeCvv", cvv as "M"|"N"|"U");
       }} />
 
       {/* Context */}
@@ -342,7 +329,7 @@ const ELEMENT_STYLE = {
 };
 
 function StripeCardInner({ onToken, tokenizeRef }: {
-  onToken: (pmId: string, last4: string, brand: string) => void;
+  onToken: (pmId: string, last4: string, brand: string, avs?: string, cvv?: string) => void;
   tokenizeRef?: React.MutableRefObject<(() => Promise<boolean>) | null>;
 }) {
   const stripe = useStripe();
@@ -361,9 +348,34 @@ function StripeCardInner({ onToken, tokenizeRef }: {
       setMessage(error.message ?? "Card error");
       return false;
     }
-    onToken(paymentMethod.id, paymentMethod.card?.last4 ?? "", paymentMethod.card?.brand ?? "");
+
+    const pmId = paymentMethod.id;
+    const last4 = paymentMethod.card?.last4 ?? "";
+    const brand = paymentMethod.card?.brand ?? "";
+
+    // Await AVS/CVV check before signalling done — ensures values
+    // are in form state when verify fires immediately after
+    let avs: string | undefined;
+    let cvv: string | undefined;
+    try {
+      const res = await fetch("/api/stripe-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentMethodId: pmId }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        avs = result.avs;
+        cvv = result.cvv;
+      }
+    } catch {
+      // Non-fatal
+    }
+
+    // Now call onToken with all data including AVS/CVV
+    onToken(pmId, last4, brand, avs, cvv);
     setStatus("done");
-    setMessage(`✓ ${paymentMethod.card?.brand?.toUpperCase()} ending ${paymentMethod.card?.last4} secured`);
+    setMessage(`✓ ${brand.toUpperCase()} ending ${last4} secured${avs ? ` · AVS: ${avs}` : ""}`);
     return true;
   };
 
@@ -393,7 +405,7 @@ function StripeCardInner({ onToken, tokenizeRef }: {
   );
 }
 
-function StripeCardSection({ onToken, tokenizeRef }: { onToken: (pmId: string, last4: string, brand: string) => void; tokenizeRef?: React.MutableRefObject<(() => Promise<boolean>) | null>; }) {
+function StripeCardSection({ onToken, tokenizeRef }: { onToken: (pmId: string, last4: string, brand: string, avs?: string, cvv?: string) => void; tokenizeRef?: React.MutableRefObject<(() => Promise<boolean>) | null>; }) {
   if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
     return (
       <div className="card p-6 border border-slate-200">
