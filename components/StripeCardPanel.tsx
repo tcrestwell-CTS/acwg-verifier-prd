@@ -34,9 +34,19 @@ interface AvsResult {
   error?: string;
 }
 
+interface RescoreResult {
+  score: number;
+  decision: string;
+  reasons: string[];
+  hardStop: boolean;
+  scoreDelta: number;
+}
+
 interface StripeCardPanelProps {
+  orderId?: string;
   billingZip: string;
   onResult: (result: AvsResult) => void;
+  onRescore?: (result: RescoreResult) => void;
 }
 
 const ELEMENT_OPTIONS = {
@@ -51,7 +61,7 @@ const ELEMENT_OPTIONS = {
   },
 };
 
-function CardForm({ billingZip, onResult }: StripeCardPanelProps) {
+function CardForm({ orderId, billingZip, onResult, onRescore }: StripeCardPanelProps) {
   const stripe = useStripe();
   const elements = useElements();
   const { success, error: toastError } = useToast();
@@ -89,12 +99,40 @@ function CardForm({ billingZip, onResult }: StripeCardPanelProps) {
       if (!res.ok) throw new Error((await res.json()).error);
       return await res.json() as AvsResult;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setResult(data);
       onResult(data);
       if (data.avs === "Y") success("Card verified", "AVS full match — billing address confirmed");
       else if (data.avs === "N") toastError("AVS mismatch", "Billing address does not match card records");
       else if (data.avs === "P") toastError("AVS partial", "ZIP matched but street address did not");
+
+      // Rescore the order with real AVS/CVV
+      if (orderId && onRescore) {
+        try {
+          const res = await fetch("/api/rescore", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orderId,
+              avs: data.avs,
+              cvv: data.cvv,
+              last4: data.last4,
+              brand: data.brand,
+            }),
+          });
+          if (res.ok) {
+            const rescored = await res.json() as RescoreResult;
+            onRescore(rescored);
+            if (rescored.hardStop) {
+              toastError("Hard Stop", rescored.reasons.find(r => r.toLowerCase().includes("hard stop")) ?? "Order must be denied");
+            } else {
+              success("Score updated", `Risk score updated to ${rescored.score}/100 — ${rescored.decision.toUpperCase()}`);
+            }
+          }
+        } catch {
+          // Rescore failure is non-fatal — result still shown
+        }
+      }
     },
     onError: (err: Error) => toastError("Verification failed", err.message),
   });
