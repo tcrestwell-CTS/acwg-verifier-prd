@@ -4,6 +4,7 @@ import dns from "dns/promises";
 export interface EmailCheckResult {
   disposable?: boolean;
   mxValid?: boolean;
+  smtpExists?: boolean | null;
   domainRisk: "low" | "medium" | "high";
   reasons: string[];
 }
@@ -60,6 +61,85 @@ const DISPOSABLE_DOMAINS = new Set([
   "inboxkitten.com", "tempmail.ninja", "harakirimail.com",
   "notmailinator.com", "mailsac.com", "mailseal.de",
 ]);
+
+// ── SMTP mailbox verification ────────────────────────────────────────────────
+// Connects to the domain's mail server and checks if the mailbox actually exists
+// Uses RCPT TO command — no email is sent
+// Some major providers (Gmail, Outlook) block RCPT probing — falls back gracefully
+
+import net from "net";
+
+async function smtpVerify(email: string, domain: string): Promise<{
+  exists: boolean | null;  // null = server blocked probe
+  reason: string;
+}> {
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      resolve({ exists: null, reason: "SMTP timeout — server did not respond" });
+    }, 6000);
+
+    let buffer = "";
+    let step = 0;
+    const socket = net.createConnection(25, domain);
+    socket.setTimeout(6000);
+
+    const send = (cmd: string) => socket.write(cmd + "
+");
+
+    const cleanup = () => {
+      clearTimeout(timeout);
+      socket.destroy();
+    };
+
+    socket.on("data", (data: Buffer) => {
+      buffer += data.toString();
+      const lines = buffer.split("
+");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        const code = parseInt(line.slice(0, 3), 10);
+
+        if (step === 0 && code === 220) {
+          step = 1;
+          send("EHLO acwg-verifier.crestwellgetaways.com");
+        } else if (step === 1 && (code === 250 || code === 220)) {
+          step = 2;
+          send("MAIL FROM:<verify@crestwellgetaways.com>");
+        } else if (step === 2 && code === 250) {
+          step = 3;
+          send(`RCPT TO:<${email}>`);
+        } else if (step === 3) {
+          cleanup();
+          if (code === 250 || code === 251) {
+            resolve({ exists: true, reason: "Mailbox confirmed by mail server" });
+          } else if (code === 550 || code === 551 || code === 553 || code === 554) {
+            resolve({ exists: false, reason: `Mailbox does not exist (SMTP ${code})` });
+          } else if (code === 421 || code === 450 || code === 451 || code === 452) {
+            resolve({ exists: null, reason: `Server temporarily unavailable (SMTP ${code})` });
+          } else {
+            // 550-series with catch-all, or server blocked probe
+            resolve({ exists: null, reason: `Server blocked SMTP probe (code ${code})` });
+          }
+        } else if (code >= 500 && step < 3) {
+          cleanup();
+          resolve({ exists: null, reason: "Server rejected connection" });
+        }
+      }
+    });
+
+    socket.on("error", (err: Error) => {
+      cleanup();
+      // Port 25 blocked (Vercel blocks outbound port 25) — try IPQS instead
+      resolve({ exists: null, reason: `SMTP unavailable: ${err.message.slice(0, 60)}` });
+    });
+
+    socket.on("timeout", () => {
+      cleanup();
+      resolve({ exists: null, reason: "SMTP connection timed out" });
+    });
+  });
+}
 
 // ── IPQS email check (uses same API key as identity intelligence) ─────────────
 
@@ -132,7 +212,17 @@ export async function checkEmail(email: string): Promise<EmailCheckResult> {
     mxValid = false;
   }
 
-  // 3. IPQS check for deeper analysis (if configured)
+  // 3. SMTP mailbox verification (only if MX is valid — no point checking if domain has no mail server)
+  let smtpExists: boolean | null = null;
+  let smtpReason = "";
+  if (mxValid && !isDisposableLocal) {
+    const smtpResult = await smtpVerify(email, domain);
+    smtpExists = smtpResult.exists;
+    smtpReason = smtpResult.reason;
+    logger.info("email: SMTP check", { email, exists: smtpExists, reason: smtpReason });
+  }
+
+  // 4. IPQS check for deeper analysis (if configured)
   const ipqs = await checkViaIPQS(email);
 
   const isDisposable = isDisposableLocal || (ipqs?.disposable ?? false);
@@ -145,6 +235,12 @@ export async function checkEmail(email: string): Promise<EmailCheckResult> {
   if (!mxValid) {
     reasons.push(`Email domain "${domain}" has no mail server — address cannot receive mail`);
   }
+  // SMTP mailbox check
+  if (smtpExists === false) {
+    reasons.push(`Mailbox "${email}" does not exist — confirmed by mail server`);
+  } else if (smtpExists === true) {
+    reasons.push(`✓ Mailbox confirmed by mail server`);
+  }
   if (isDisposable) reasons.push(`Disposable/throwaway email domain: ${domain}`);
   if (highRiskTld) reasons.push(`High-risk top-level domain: ${tld}`);
   if (recentAbuse) reasons.push("Email address associated with recent fraud or abuse");
@@ -154,7 +250,7 @@ export async function checkEmail(email: string): Promise<EmailCheckResult> {
 
   // Determine domain risk
   let domainRisk: "low" | "medium" | "high" = "low";
-  if (isDisposable || !mxValid || highRiskTld || fraudScore >= 75 || suspect) {
+  if (isDisposable || !mxValid || highRiskTld || fraudScore >= 75 || suspect || smtpExists === false) {
     domainRisk = "high";
   } else if (!isReputable || recentAbuse || fraudScore >= 50) {
     domainRisk = "medium";
@@ -168,5 +264,5 @@ export async function checkEmail(email: string): Promise<EmailCheckResult> {
 
   logger.info("email check complete", { domain, mxValid, isDisposable, fraudScore, domainRisk });
 
-  return { disposable: isDisposable, mxValid, domainRisk, reasons };
+  return { disposable: isDisposable, mxValid, smtpExists, domainRisk, reasons };
 }
