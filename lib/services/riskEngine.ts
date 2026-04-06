@@ -153,8 +153,11 @@ export function runRiskEngine(
     components.email += 30;
     reasons.push("Email domain has no mail server — address is invalid or fake");
     requiresOtp = true;
-  } else if ((v.email as { smtpExists?: boolean | null }).smtpExists === false) {
-    // Mailbox confirmed not to exist by SMTP check
+  } else if (
+    (v.email as { smtpExists?: boolean | null }).smtpExists === false ||
+    (v.email as { mailboxValid?: boolean }).mailboxValid === false
+  ) {
+    // Mailbox confirmed not to exist — either by SMTP probe or IPQS validation
     components.email += 25;
     reasons.push("Email mailbox does not exist — confirmed by mail server");
     requiresOtp = true;
