@@ -153,6 +153,11 @@ export function runRiskEngine(
     components.email += 30;
     reasons.push("Email domain has no mail server — address is invalid or fake");
     requiresOtp = true;
+  } else if ((v.email as { smtpExists?: boolean | null }).smtpExists === false) {
+    // Mailbox confirmed not to exist by SMTP check
+    components.email += 25;
+    reasons.push("Email mailbox does not exist — confirmed by mail server");
+    requiresOtp = true;
   } else if (v.email.disposable === true) {
     components.email += 20;
     reasons.push("Email is a disposable/throwaway address — cannot verify identity");
