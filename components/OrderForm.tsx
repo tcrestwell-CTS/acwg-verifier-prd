@@ -225,12 +225,12 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
           {fields.map((field, idx) => (
             <div key={field.id} className="grid grid-cols-12 gap-3 items-start p-3 bg-slate-50 rounded-lg">
               <div className="col-span-2">
-                <label className="form-label text-xs" htmlFor={`sku-${idx}`}>SKU</label>
-                <input id={`sku-${idx}`} className="form-input text-xs" placeholder="TRV-001" {...register(`items.${idx}.sku`)} />
+                <label className="form-label text-xs" htmlFor={`sku-${idx}`}>Order ID</label>
+                <input id={`sku-${idx}`} className="form-input text-xs" placeholder="ORD-2026-001" {...register(`items.${idx}.sku`)} />
                 <FieldError message={errors.items?.[idx]?.sku?.message} />
               </div>
               <div className="col-span-5">
-                <label className="form-label text-xs" htmlFor={`name-${idx}`}>Description</label>
+                <label className="form-label text-xs" htmlFor={`name-${idx}`}>Order Name</label>
                 <input id={`name-${idx}`} className="form-input text-xs" placeholder="Caribbean Cruise Deposit" {...register(`items.${idx}.name`)} />
                 <FieldError message={errors.items?.[idx]?.name?.message} />
               </div>
