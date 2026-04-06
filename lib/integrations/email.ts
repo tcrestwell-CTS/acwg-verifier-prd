@@ -83,8 +83,7 @@ async function smtpVerify(email: string, domain: string): Promise<{
     const socket = net.createConnection(25, domain);
     socket.setTimeout(6000);
 
-    const send = (cmd: string) => socket.write(cmd + "
-");
+    const send = (cmd: string) => socket.write(cmd + "\r\n");
 
     const cleanup = () => {
       clearTimeout(timeout);
@@ -266,3 +265,4 @@ export async function checkEmail(email: string): Promise<EmailCheckResult> {
 
   return { disposable: isDisposable, mxValid, smtpExists, domainRisk, reasons };
 }
+
