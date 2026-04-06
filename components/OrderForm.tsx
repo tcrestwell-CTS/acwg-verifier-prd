@@ -265,7 +265,16 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
       </div>
 
       {/* Payment — Stripe Elements inline card collection + AVS/CVV */}
-      <StripeCardSection tokenizeRef={tokenizeRef} onToken={(pmId, last4, brand, avs, cvv) => {
+      <StripeCardSection
+        tokenizeRef={tokenizeRef}
+        billingDetails={{
+          name: `${watch("customer.firstName") ?? ""} ${watch("customer.lastName") ?? ""}`.trim(),
+          line1: watch("billingAddress.line1"),
+          city: watch("billingAddress.city"),
+          state: watch("billingAddress.state"),
+          postalCode: watch("billingAddress.postalCode"),
+        }}
+        onToken={(pmId, last4, brand, avs, cvv) => {
         // Store in ref for immediate access in submit handler
         stripeDataRef.current = { pmId, last4, brand, avs, cvv };
         // Also update form state for display purposes
@@ -348,9 +357,18 @@ const ELEMENT_STYLE = {
   },
 };
 
-function StripeCardInner({ onToken, tokenizeRef }: {
+interface BillingDetails {
+  name?: string;
+  line1?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+}
+
+function StripeCardInner({ onToken, tokenizeRef, billingDetails }: {
   onToken: (pmId: string, last4: string, brand: string, avs?: string, cvv?: string) => void;
   tokenizeRef?: React.MutableRefObject<(() => Promise<boolean>) | null>;
+  billingDetails?: BillingDetails;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -362,7 +380,19 @@ function StripeCardInner({ onToken, tokenizeRef }: {
     const cardNumber = elements.getElement(CardNumberElement);
     if (!cardNumber) return true; // no card mounted — skip
     setStatus("tokenizing");
-    const { error, paymentMethod } = await stripe.createPaymentMethod({ type: "card", card: cardNumber });
+    const { error, paymentMethod } = await stripe.createPaymentMethod({
+      type: "card",
+      card: cardNumber,
+      billing_details: {
+        name: billingDetails?.name,
+        address: {
+          line1: billingDetails?.line1,
+          city: billingDetails?.city,
+          state: billingDetails?.state,
+          postal_code: billingDetails?.postalCode,
+        },
+      },
+    });
     if (error) {
       setStatus("error");
       setMessage(error.message ?? "Card error");
@@ -381,7 +411,7 @@ function StripeCardInner({ onToken, tokenizeRef }: {
       const res = await fetch("/api/stripe-verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentMethodId: pmId }),
+        body: JSON.stringify({ paymentMethodId: pmId, billingZip: billingDetails?.postalCode }),
       });
       if (res.ok) {
         const result = await res.json();
@@ -425,7 +455,7 @@ function StripeCardInner({ onToken, tokenizeRef }: {
   );
 }
 
-function StripeCardSection({ onToken, tokenizeRef }: { onToken: (pmId: string, last4: string, brand: string, avs?: string, cvv?: string) => void; tokenizeRef?: React.MutableRefObject<(() => Promise<boolean>) | null>; }) {
+function StripeCardSection({ onToken, tokenizeRef, billingDetails }: { onToken: (pmId: string, last4: string, brand: string, avs?: string, cvv?: string) => void; tokenizeRef?: React.MutableRefObject<(() => Promise<boolean>) | null>; billingDetails?: BillingDetails; }) {
   if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
     return (
       <div className="card p-6 border border-slate-200">
@@ -441,7 +471,7 @@ function StripeCardSection({ onToken, tokenizeRef }: { onToken: (pmId: string, l
         Enter the card details provided by the customer. Secure the card before running verification so AVS and CVV are included in the risk assessment.
       </p>
       <Elements stripe={stripePromise}>
-        <StripeCardInner onToken={onToken} tokenizeRef={tokenizeRef} />
+        <StripeCardInner onToken={onToken} tokenizeRef={tokenizeRef} billingDetails={billingDetails} />
       </Elements>
     </div>
   );
