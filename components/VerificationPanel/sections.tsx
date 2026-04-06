@@ -64,16 +64,16 @@ export function PaymentSection({ data }: PaymentProps) {
     data.binType === "prepaid" ? "warn" : data.binType === "credit" || data.binType === "debit" ? "pass" : "neutral";
 
   const avsLabel: Record<string, string> = {
-    Y: "AVS: Full Match",
+    Y: "✓ AVS: Full Match",
     P: "AVS: Partial Match",
-    N: "AVS: No Match",
-    U: "AVS: Unavailable",
+    N: "✗ AVS: Mismatch",
+    U: "AVS: Not Checked",
   };
 
   const cvvLabel: Record<string, string> = {
-    M: "CVV: Match",
-    N: "CVV: No Match",
-    U: "CVV: Unavailable",
+    M: "✓ CVV: Match",
+    N: "✗ CVV: Mismatch",
+    U: "CVV: Not Checked",
   };
 
   return (
