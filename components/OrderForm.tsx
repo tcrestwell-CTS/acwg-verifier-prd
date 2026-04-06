@@ -31,7 +31,7 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
     control,
     getValues,
     setValue,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<OrderPayload>({
     resolver: zodResolver(OrderPayloadSchema),
     defaultValues: {
