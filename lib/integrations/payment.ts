@@ -158,7 +158,7 @@ export async function checkPayment(
     if (avs === "Y") reasons.push("✓ AVS full match — billing address confirmed by card issuer");
     else if (avs === "N") reasons.push("AVS mismatch — billing address does not match card issuer records");
     else if (avs === "P") reasons.push("AVS partial match — ZIP matched but street address did not");
-    else reasons.push("AVS unavailable — card issuer did not return address verification");
+    else reasons.push("AVS check pending — secure the card above before running verification");
 
     if (cvv === "M") reasons.push("✓ CVV matched — security code confirmed");
     else if (cvv === "N") reasons.push("CVV mismatch — security code rejected by card issuer");
@@ -181,10 +181,10 @@ export async function checkPayment(
     return { avs, cvv, binCountry, binType, reasons };
   }
 
-  if (!meta.cardLast4 && !meta.bin) {
+  if (!meta.cardLast4 && !meta.bin && !meta.stripePaymentMethodId) {
     return {
       avs: "U", cvv: "U",
-      reasons: ["No payment info provided — verification skipped"],
+      reasons: ["Card not entered — enter card details above and run verification to check AVS and CVV"],
     };
   }
 
