@@ -9,6 +9,7 @@ import { DecisionModal } from "@/components/DecisionModal";
 import { ClaudeSummary } from "@/components/ClaudeSummary";
 import { RepPlaybook } from "@/components/RepPlaybook";
 import { OtpPanel } from "@/components/OtpPanel";
+import { StripeCardPanel } from "@/components/StripeCardPanel";
 import { IdentityPanel } from "@/components/panels/IdentityPanel";
 import { DevicePanel } from "@/components/panels/DevicePanel";
 import { PropertyPanel } from "@/components/panels/PropertyPanel";
