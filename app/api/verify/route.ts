@@ -200,8 +200,7 @@ export async function POST(req: NextRequest) {
 
     // Merge Stripe AVS/CVV into payment result if available
     if (stripeAvsResult) {
-      paymentResult = {
-        ...paymentResult,
+      Object.assign(paymentResult, {
         avs: stripeAvsResult.avs,
         cvv: stripeAvsResult.cvv,
         ...(stripeAvsResult.last4 ? { cardLast4: stripeAvsResult.last4 } : {}),
@@ -215,7 +214,7 @@ export async function POST(req: NextRequest) {
           stripeAvsResult.cvv === "M" ? "✓ CVV matched" :
           stripeAvsResult.cvv === "N" ? "CVV mismatch — security code rejected" : "CVV not verified",
         ],
-      };
+      });
     }
 
     const overall = {
