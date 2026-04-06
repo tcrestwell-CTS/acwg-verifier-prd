@@ -92,8 +92,7 @@ async function smtpVerify(email: string, domain: string): Promise<{
 
     socket.on("data", (data: Buffer) => {
       buffer += data.toString();
-      const lines = buffer.split("
-");
+      const lines = buffer.split("\r\n");
       buffer = lines.pop() ?? "";
 
       for (const line of lines) {
