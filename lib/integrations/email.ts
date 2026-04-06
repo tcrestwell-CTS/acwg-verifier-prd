@@ -4,7 +4,11 @@ import dns from "dns/promises";
 export interface EmailCheckResult {
   disposable?: boolean;
   mxValid?: boolean;
-  smtpExists?: boolean | null;
+  smtpExists?: boolean | null;    // local SMTP probe result
+  mailboxValid?: boolean | null;  // IPQS mailbox validation
+  smtpScore?: number | null;      // IPQS smtp_score (-1 to 3)
+  deliverability?: string;        // IPQS deliverability rating
+  catchAll?: boolean;             // server accepts all addresses
   domainRisk: "low" | "medium" | "high";
   reasons: string[];
 }
@@ -228,29 +232,57 @@ export async function checkEmail(email: string): Promise<EmailCheckResult> {
   const recentAbuse = ipqs?.recent_abuse ?? false;
   const suspect = ipqs?.suspect ?? false;
   const leaked = ipqs?.leaked ?? false;
+  const honeypot = ipqs?.honeypot ?? false;
+  const frequentComplainer = ipqs?.frequent_complainer ?? false;
+  const spamTrap = ipqs?.spam_trap_score && ipqs.spam_trap_score !== "none";
+
+  // Mailbox-level validation from IPQS SMTP check
+  const mailboxValid = ipqs?.valid;               // false = mailbox doesn't exist
+  const smtpScore = ipqs?.smtp_score ?? null;     // -1=rejected, 0-1=uncertain, 2-3=confirmed
+  const deliverability = ipqs?.deliverability;    // "low" | "medium" | "high"
+  const catchAll = ipqs?.catch_all ?? false;      // server accepts everything
+
+  // Combine SMTP signals: local check + IPQS mailbox validation
+  const mailboxConfirmedInvalid =
+    smtpExists === false ||
+    mailboxValid === false ||
+    smtpScore === -1;
+
+  const mailboxConfirmedValid =
+    smtpExists === true ||
+    (mailboxValid === true && smtpScore !== null && smtpScore >= 2);
 
   // No MX records = domain doesn't exist = fake email
   if (!mxValid) {
     reasons.push(`Email domain "${domain}" has no mail server — address cannot receive mail`);
+  } else if (mailboxConfirmedInvalid && !catchAll) {
+    reasons.push(`Mailbox "${email}" does not exist — rejected by mail server`);
+  } else if (mailboxConfirmedValid) {
+    reasons.push(`✓ Mailbox confirmed deliverable`);
+  } else if (catchAll) {
+    reasons.push(`Mail server accepts all addresses — individual mailbox unverifiable`);
+  } else if (deliverability === "low") {
+    reasons.push(`Email deliverability is low — mailbox may not exist`);
   }
-  // SMTP mailbox check
-  if (smtpExists === false) {
-    reasons.push(`Mailbox "${email}" does not exist — confirmed by mail server`);
-  } else if (smtpExists === true) {
-    reasons.push(`✓ Mailbox confirmed by mail server`);
-  }
+
   if (isDisposable) reasons.push(`Disposable/throwaway email domain: ${domain}`);
   if (highRiskTld) reasons.push(`High-risk top-level domain: ${tld}`);
   if (recentAbuse) reasons.push("Email address associated with recent fraud or abuse");
   if (suspect) reasons.push("Email flagged as suspicious by fraud intelligence");
   if (leaked) reasons.push("Email found in data breach records");
+  if (honeypot) reasons.push("Email address is a known honeypot/spam trap");
+  if (frequentComplainer) reasons.push("Email owner is a frequent spam complainer");
+  if (spamTrap) reasons.push(`Email flagged as spam trap (score: ${ipqs?.spam_trap_score})`);
   if (fraudScore >= 75) reasons.push(`Email fraud score: ${fraudScore}/100`);
 
   // Determine domain risk
   let domainRisk: "low" | "medium" | "high" = "low";
-  if (isDisposable || !mxValid || highRiskTld || fraudScore >= 75 || suspect || smtpExists === false) {
+  if (
+    isDisposable || !mxValid || highRiskTld || fraudScore >= 75 || suspect ||
+    mailboxConfirmedInvalid || honeypot || spamTrap
+  ) {
     domainRisk = "high";
-  } else if (!isReputable || recentAbuse || fraudScore >= 50) {
+  } else if (!isReputable || recentAbuse || fraudScore >= 50 || deliverability === "low") {
     domainRisk = "medium";
   }
 
@@ -262,6 +294,6 @@ export async function checkEmail(email: string): Promise<EmailCheckResult> {
 
   logger.info("email check complete", { domain, mxValid, isDisposable, fraudScore, domainRisk });
 
-  return { disposable: isDisposable, mxValid, smtpExists, domainRisk, reasons };
+  return { disposable: isDisposable, mxValid, smtpExists, mailboxValid, smtpScore, deliverability, catchAll, domainRisk, reasons };
 }
 
