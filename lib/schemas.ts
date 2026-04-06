@@ -46,18 +46,12 @@ export const OrderPayloadSchema = z.object({
   shippingAddress: AddressSchema,
   items: z.array(OrderItemSchema).min(1, "At least one item is required"),
   paymentMeta: z.object({
-    cardLast4: z
-      .string()
-      .regex(/^\d{4}$/, "Enter exactly 4 digits")
-      .optional()
-      .or(z.literal("")),
-    bin: z
-      .string()
-      .regex(/^\d{6}$/, "BIN must be 6 digits")
-      .optional()
-      .or(z.literal("")),
+    // Populated from Stripe PaymentMethod after card check
+    cardLast4: z.string().optional(),
+    bin: z.string().optional(),
     brand: z.string().optional(),
-  }),
+    stripePaymentMethodId: z.string().optional(),
+  }).optional().default({}),
   context: z.object({
     ip: z.string().optional(),
     userAgent: z.string().optional(),
