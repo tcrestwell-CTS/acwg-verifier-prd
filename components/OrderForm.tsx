@@ -22,6 +22,7 @@ function FieldError({ message }: { message?: string }) {
 }
 
 export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
+  const tokenizeRef = React.useRef<(() => Promise<boolean>) | null>(null);
   const [sameAddress, setSameAddress] = useState(true);
 
   const {
