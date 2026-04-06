@@ -20,7 +20,7 @@ export function PhonePanel({ phone }: { phone: PhoneIntelSignals }) {
   return (
     <div className="card overflow-hidden">
       <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-        <h3 className="text-xs font-bold text-slate-600 uppercase tracking-widest">Phone Intelligence</h3>
+        <h3 className="text-xs font-bold text-slate-700 uppercase tracking-widest flex items-center gap-1.5"><span>📱</span> Phone Intel</h3>
         {phone.fraudScore !== undefined && (
           <span className={`text-sm font-bold tabular-nums ${scoreColor}`}>
             Risk {phone.fraudScore}/100
