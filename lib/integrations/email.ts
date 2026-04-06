@@ -4,11 +4,12 @@ import dns from "dns/promises";
 export interface EmailCheckResult {
   disposable?: boolean;
   mxValid?: boolean;
-  smtpExists?: boolean | null;    // local SMTP probe result
-  mailboxValid?: boolean | null;  // IPQS mailbox validation
-  smtpScore?: number | null;      // IPQS smtp_score (-1 to 3)
-  deliverability?: string;        // IPQS deliverability rating
-  catchAll?: boolean;             // server accepts all addresses
+  smtpExists?: boolean | null;
+  mailboxValid?: boolean | null;
+  smtpScore?: number | null;
+  deliverability?: string;
+  catchAll?: boolean;
+  firstSeenDaysAgo?: number | null;  // how old the email address is
   domainRisk: "low" | "medium" | "high";
   reasons: string[];
 }
@@ -170,6 +171,8 @@ interface IPQSEmailResponse {
   spf_record?: boolean;
   dmarc_record?: boolean;
   risky_tld?: boolean;
+  first_seen?: { human?: string; timestamp?: number; iso?: string };
+  domain_age?: { human?: string; timestamp?: number; iso?: string };
 }
 
 async function checkViaIPQS(email: string): Promise<IPQSEmailResponse | null> {
@@ -249,6 +252,14 @@ export async function checkEmail(email: string): Promise<EmailCheckResult> {
   const frequentComplainer = ipqs?.frequent_complainer ?? false;
   const spamTrap = ipqs?.spam_trap_score && ipqs.spam_trap_score !== "none";
 
+  // Email first seen — recently created emails are high risk
+  const firstSeenTimestamp = ipqs?.first_seen?.timestamp;
+  const firstSeenDaysAgo = firstSeenTimestamp
+    ? Math.floor((Date.now() / 1000 - firstSeenTimestamp) / 86400)
+    : null;
+  const emailIsNew = firstSeenDaysAgo !== null && firstSeenDaysAgo <= 7;
+  const emailIsVeryNew = firstSeenDaysAgo !== null && firstSeenDaysAgo <= 1;
+
   // Mailbox-level validation from IPQS SMTP check
   const mailboxValid = ipqs?.valid;               // false = mailbox doesn't exist
   const smtpScore = ipqs?.smtp_score ?? null;     // -1=rejected, 0-1=uncertain, 2-3=confirmed
@@ -287,12 +298,15 @@ export async function checkEmail(email: string): Promise<EmailCheckResult> {
   if (frequentComplainer) reasons.push("Email owner is a frequent spam complainer");
   if (spamTrap) reasons.push(`Email flagged as spam trap (score: ${ipqs?.spam_trap_score})`);
   if (fraudScore >= 75) reasons.push(`Email fraud score: ${fraudScore}/100`);
+  if (emailIsVeryNew) reasons.push(`Email address was first seen ${firstSeenDaysAgo === 0 ? "today" : "yesterday"} — created immediately before this order`);
+  else if (emailIsNew && firstSeenDaysAgo !== null) reasons.push(`Email address first seen ${firstSeenDaysAgo} days ago — very recently created`);
+  else if (firstSeenDaysAgo !== null && firstSeenDaysAgo > 7) reasons.push(`Email address first seen ${ipqs?.first_seen?.human ?? `${firstSeenDaysAgo} days ago`}`);
 
   // Determine domain risk
   let domainRisk: "low" | "medium" | "high" = "low";
   if (
     isDisposable || !mxValid || highRiskTld || fraudScore >= 75 || suspect ||
-    mailboxConfirmedInvalid || honeypot || spamTrap
+    mailboxConfirmedInvalid || honeypot || spamTrap || emailIsVeryNew
   ) {
     domainRisk = "high";
   } else if (!isReputable || recentAbuse || fraudScore >= 50 || deliverability === "low") {
@@ -307,6 +321,6 @@ export async function checkEmail(email: string): Promise<EmailCheckResult> {
 
   logger.info("email check complete", { domain, mxValid, isDisposable, fraudScore, domainRisk });
 
-  return { disposable: isDisposable, mxValid, smtpExists, mailboxValid, smtpScore, deliverability, catchAll, domainRisk, reasons };
+  return { disposable: isDisposable, mxValid, smtpExists, mailboxValid, smtpScore, deliverability, catchAll, domainRisk, firstSeenDaysAgo, reasons };
 }
 
