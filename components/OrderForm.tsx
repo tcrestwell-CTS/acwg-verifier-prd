@@ -2,6 +2,9 @@
 
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { useState as useStripeState } from "react";
 import { OrderPayloadSchema, type OrderPayload } from "@/lib/schemas";
 import { normalizePhone, normalizeState, normalizeZip } from "@/lib/format";
 import { useState } from "react";
@@ -254,17 +257,12 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
         </div>
       </div>
 
-      {/* Payment — card details entered via Stripe panel after verification runs */}
-      <div className="card p-6 border border-blue-100 bg-blue-50/30">
-        <h2 className="section-header">Payment Verification</h2>
-        <p className="text-sm text-slate-600">
-          Card details are collected securely via the <strong>Card Verification panel</strong> that appears after running verification.
-          The rep enters the full card number there — it is tokenized by Stripe and never stored.
-        </p>
-        <p className="text-xs text-slate-400 mt-2">
-          AVS and CVV results will appear in the results panel after the card check is run.
-        </p>
-      </div>
+      {/* Payment — Stripe Elements inline card collection */}
+      <StripeCardSection onToken={(pmId, last4, brand) => {
+        setValue("paymentMeta.stripePaymentMethodId", pmId);
+        setValue("paymentMeta.cardLast4", last4);
+        setValue("paymentMeta.brand", brand);
+      }} />
 
       {/* Context */}
       <div className="card p-6">
@@ -297,5 +295,88 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
         </button>
       </div>
     </form>
+  );
+}
+
+// ── Stripe card section ────────────────────────────────────────────────────────
+
+const stripePromise = typeof window !== "undefined"
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "")
+  : null;
+
+const ELEMENT_STYLE = {
+  style: {
+    base: { fontSize: "14px", color: "#1e293b", fontFamily: "Arial, sans-serif", "::placeholder": { color: "#94a3b8" } },
+    invalid: { color: "#cc1111" },
+  },
+};
+
+function StripeCardInner({ onToken }: { onToken: (pmId: string, last4: string, brand: string) => void }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [status, setStatus] = useStripeState<"idle" | "tokenizing" | "done" | "error">("idle");
+  const [message, setMessage] = useStripeState("");
+
+  const tokenize = async () => {
+    if (!stripe || !elements) return;
+    setStatus("tokenizing");
+    const cardNumber = elements.getElement(CardNumberElement);
+    if (!cardNumber) return;
+    const { error, paymentMethod } = await stripe.createPaymentMethod({ type: "card", card: cardNumber });
+    if (error) {
+      setStatus("error");
+      setMessage(error.message ?? "Card error");
+    } else {
+      onToken(paymentMethod.id, paymentMethod.card?.last4 ?? "", paymentMethod.card?.brand ?? "");
+      setStatus("done");
+      setMessage(`✓ ${paymentMethod.card?.brand?.toUpperCase()} ending ${paymentMethod.card?.last4} ready`);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="form-label">Card Number</label>
+        <div className="form-input py-3"><CardNumberElement options={ELEMENT_STYLE} onChange={() => setStatus("idle")} /></div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="form-label">Expiry</label>
+          <div className="form-input py-3"><CardExpiryElement options={ELEMENT_STYLE} /></div>
+        </div>
+        <div>
+          <label className="form-label">CVV</label>
+          <div className="form-input py-3"><CardCvcElement options={ELEMENT_STYLE} /></div>
+        </div>
+      </div>
+      <button type="button" onClick={tokenize} disabled={status === "tokenizing" || status === "done"}
+        className={`btn-secondary w-full text-sm ${status === "done" ? "border-green-300 text-green-700 bg-green-50" : ""}`}>
+        {status === "tokenizing" ? "Securing card…" : status === "done" ? message : "Secure Card for Verification"}
+      </button>
+      {status === "error" && <p className="text-xs text-red-600">{message}</p>}
+      <p className="text-xs text-slate-400 text-center">🔒 Card tokenized by Stripe — number never stored</p>
+    </div>
+  );
+}
+
+function StripeCardSection({ onToken }: { onToken: (pmId: string, last4: string, brand: string) => void }) {
+  if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+    return (
+      <div className="card p-6 border border-slate-200">
+        <h2 className="section-header">Payment</h2>
+        <p className="text-sm text-slate-400">Stripe not configured — card verification unavailable</p>
+      </div>
+    );
+  }
+  return (
+    <div className="card p-6">
+      <h2 className="section-header">Payment</h2>
+      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+        Enter the card details provided by the customer. Secure the card before running verification so AVS and CVV are included in the risk assessment.
+      </p>
+      <Elements stripe={stripePromise}>
+        <StripeCardInner onToken={onToken} />
+      </Elements>
+    </div>
   );
 }
