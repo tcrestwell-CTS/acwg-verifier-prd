@@ -289,14 +289,15 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
           type="button"
           disabled={isLoading || isSubmitting}
           className="btn-primary px-8 py-3 text-base"
-          onClick={handleSubmit(async (data) => {
-            // Step 1: tokenize card if present
+          onClick={handleSubmit(async () => {
+            // Step 1: tokenize card + run AVS/CVV (awaited fully)
             if (tokenizeRef.current) {
               const ok = await tokenizeRef.current();
               if (!ok) return; // card error — don't proceed
             }
-            // Step 2: run verification
-            await onSubmit(data);
+            // Step 2: get fresh form values AFTER tokenize sets stripeAvs/stripeCvv
+            const freshData = getValues();
+            await onSubmit(freshData);
           })}
         >
           {isLoading || isSubmitting ? (
