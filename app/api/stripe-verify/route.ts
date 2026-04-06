@@ -29,9 +29,8 @@ export async function POST(req: NextRequest) {
       payment_method: paymentMethodId,
       confirm: "true",
       usage: "off_session",
-      // Disable redirect-based payment methods — card only, no redirects
-      "automatic_payment_methods[enabled]": "true",
-      "automatic_payment_methods[allow_redirects]": "never",
+      // Explicitly card-only — no redirects, no return_url needed
+      "payment_method_types[]": "card",
       // Expand payment_method so we get AVS/CVV checks back inline
       "expand[]": "payment_method",
     });
