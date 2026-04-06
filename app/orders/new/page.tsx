@@ -29,6 +29,10 @@ export default function NewOrderPage() {
   const [currentOrder, setCurrentOrder] = useState<OrderPayload | null>(null);
   const [verification, setVerification] = useState<VerificationResult | null>(null);
   const [stripeAvs, setStripeAvs] = useState<{ avs: string; cvv: string } | null>(null);
+  const [stripeCardResult, setStripeCardResult] = useState<{
+    avs: "Y"|"N"|"P"|"U"; cvv: "M"|"N"|"U";
+    last4?: string; brand?: string; expMonth?: number; expYear?: number;
+  } | null>(null);
   const [decisionModal, setDecisionModal] = useState<{
     open: boolean;
     initialStatus: "approved" | "queued" | "denied";
@@ -105,6 +109,12 @@ export default function NewOrderPage() {
 
       {!verification ? (
         <OrderForm onSubmit={verifyMutation.mutateAsync} isLoading={verifyMutation.isPending} />
+
+            {/* Stripe card panel — collect before running verify */}
+            <StripeCardPanel
+              billingZip=""
+              onResult={(r) => setStripeCardResult(r as typeof stripeCardResult)}
+            />
       ) : (
         <div className="space-y-6 animate-fade-in">
           <button type="button" onClick={() => { setVerification(null); setCurrentOrder(null); setOrderId(null); }} className="btn-secondary text-sm">
@@ -130,23 +140,7 @@ export default function NewOrderPage() {
                   required={!!(verification.overall as { requiresOtp?: boolean }).requiresOtp}
                 />
               )}
-              <StripeCardPanel
-                orderId={orderId ?? undefined}
-                billingZip={currentOrder?.billingAddress?.postalCode ?? ""}
-                onResult={(r) => setStripeAvs(r)}
-                onRescore={(r) => {
-                  // Merge rescored result back into verification state
-                  if (verification) {
-                    setVerification({
-                      ...verification,
-                      overall: {
-                        ...(verification.overall as object),
-                        ...r,
-                      } as typeof verification.overall,
-                    });
-                  }
-                }}
-              />
+
               {currentOrder && <ClaudeSummary order={currentOrder} verification={verification} />}
             </div>
 
