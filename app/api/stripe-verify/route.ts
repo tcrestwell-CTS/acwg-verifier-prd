@@ -3,9 +3,9 @@ import { requireAuth } from "@/lib/auth/session";
 import { logger } from "@/lib/logger";
 
 // ── POST /api/stripe-verify ───────────────────────────────────────────────────
-// Receives a Stripe PaymentMethod token (created client-side via Stripe.js)
-// Runs a $0 SetupIntent to trigger AVS/CVV checks without charging the card
-// Returns real AVS and CVV codes from the card issuer
+// Uses a PaymentIntent with capture_method=manual ($1 hold) to trigger real
+// AVS/CVV checks from the card issuer, then immediately cancels it.
+// SetupIntents don't reliably trigger AVS — a real authorization does.
 
 export async function POST(req: NextRequest) {
   const { error } = await requireAuth("reviewer");
@@ -16,36 +16,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Stripe not configured" }, { status: 503 });
   }
 
-  const { paymentMethodId, billingZip } = await req.json();
+  const { paymentMethodId } = await req.json();
 
   if (!paymentMethodId) {
     return NextResponse.json({ error: "paymentMethodId required" }, { status: 400 });
   }
 
+  let intentId: string | undefined;
+
   try {
-    // Create a SetupIntent with the PaymentMethod — triggers AVS/CVV check
-    // $0 amount means no charge to the customer
-    const params = new URLSearchParams({
+    // Step 1: Create a $1.00 authorization hold — triggers real AVS/CVV from issuer
+    const createParams = new URLSearchParams({
+      amount: "100",          // $1.00 in cents
+      currency: "usd",
       payment_method: paymentMethodId,
-      confirm: "true",
-      usage: "off_session",
-      // Explicitly card-only — no redirects, no return_url needed
       "payment_method_types[]": "card",
-      // Expand payment_method so we get AVS/CVV checks back inline
+      capture_method: "manual",  // authorize only — never captured
+      confirm: "true",
       "expand[]": "payment_method",
     });
 
-    const res = await fetch("https://api.stripe.com/v1/setup_intents", {
+    const createRes = await fetch("https://api.stripe.com/v1/payment_intents", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${secretKey}`,
         "Content-Type": "application/x-www-form-urlencoded",
         "Stripe-Version": "2023-10-16",
       },
-      body: params,
+      body: createParams,
     });
 
-    const intent = await res.json() as {
+    const intent = await createRes.json() as {
       id?: string;
       status?: string;
       payment_method?: string | {
@@ -61,27 +62,17 @@ export async function POST(req: NextRequest) {
           };
         };
       };
-      next_action?: unknown;
-      error?: { message?: string; code?: string };
+      error?: { message?: string; code?: string; decline_code?: string };
     };
 
-    if (intent.error) {
-      logger.warn("Stripe SetupIntent error", { error: intent.error });
-      return NextResponse.json({
-        avs: "U", cvv: "U",
-        error: intent.error.message,
-        stripeCode: intent.error.code,
-      });
-    }
+    intentId = intent.id;
 
-    // Extract AVS/CVV from the expanded payment method checks
+    // Extract AVS/CVV even if declined — checks are still returned
     const card = typeof intent.payment_method === "object"
       ? intent.payment_method?.card
       : null;
 
     const checks = card?.checks;
-
-    // Stripe check values: "pass" | "fail" | "unavailable" | "unchecked" | null
     const avsStreet = checks?.address_line1_check;
     const avsZip    = checks?.address_postal_code_check;
     const cvvCheck  = checks?.cvc_check;
@@ -90,27 +81,40 @@ export async function POST(req: NextRequest) {
     const cvv = deriveCvv(cvvCheck);
 
     logger.info("Stripe AVS/CVV result", {
-      intentId: intent.id,
-      status: intent.status,
+      intentId, status: intent.status,
       avsStreet, avsZip, cvvCheck,
       avs, cvv,
+      error: intent.error?.code,
     });
 
-    // Extract BIN from funding data if available, otherwise from exp (not available)
-    // Stripe returns last4 and brand; BIN requires the full number which we never store
-    // We pass last4+brand back so the order record can be enriched
+    // Step 2: Cancel the hold immediately — no charge to customer
+    if (intentId && intent.status !== "canceled") {
+      await fetch(`https://api.stripe.com/v1/payment_intents/${intentId}/cancel`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${secretKey}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      }).catch(() => {}); // non-fatal if cancel fails
+    }
+
     return NextResponse.json({
       avs,
       cvv,
-      status: intent.status,
       last4: card?.last4,
       brand: card?.brand,
-      expMonth: card?.exp_month,
-      expYear: card?.exp_year,
       checks: { avsStreet, avsZip, cvvCheck },
+      stripeError: intent.error?.code ?? null,
     });
 
   } catch (err) {
+    // Cancel if we have an intentId
+    if (intentId) {
+      await fetch(`https://api.stripe.com/v1/payment_intents/${intentId}/cancel`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${secretKey}`, "Content-Type": "application/x-www-form-urlencoded" },
+      }).catch(() => {});
+    }
     logger.error("Stripe verify failed", { error: String(err) });
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
@@ -120,11 +124,11 @@ function deriveAvs(
   street: string | null | undefined,
   zip: string | null | undefined
 ): "Y" | "N" | "P" | "U" {
-  if (!street && !zip) return "U";
   if (street === "pass" && zip === "pass") return "Y";
   if (street === "pass" || zip === "pass") return "P";
+  if (street === "fail" && zip === "fail") return "N";
   if (street === "fail" || zip === "fail") return "N";
-  return "U";
+  return "U"; // unavailable or unchecked
 }
 
 function deriveCvv(cvc: string | null | undefined): "M" | "N" | "U" {
