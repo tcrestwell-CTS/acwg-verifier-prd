@@ -1,5 +1,6 @@
 import { logger } from "@/lib/logger";
 import type { Address } from "@/lib/schemas";
+import { validateWithUsps } from "@/lib/integrations/usps";
 
 export interface AddressCheckResult {
   dpv: "Y" | "N" | "S" | "D" | "U";
@@ -135,43 +136,72 @@ export async function checkAddress(
   const reasons: string[] = [];
 
   try {
-    const [shipResult, billResult] = await Promise.all([
+    // ── Try USPS first (most authoritative), fall back to Smarty ─────────
+    const [uspsShip, uspsBill, smartyShip, smartyBill] = await Promise.all([
+      validateWithUsps(shipping.line1, shipping.city, shipping.state, shipping.postalCode),
+      validateWithUsps(billing.line1, billing.city, billing.state, billing.postalCode),
       callSmarty(shipping),
       callSmarty(billing),
     ]);
 
-    const dpvCode = (shipResult.dpvMatchCode ?? "U") as "Y" | "N" | "S" | "D" | "U";
-    // Deliverable: confirmed by DPV code, OR address normalized successfully (Smarty found it)
-    const deliverable = dpvCode === "Y" || dpvCode === "S" || (dpvCode === "U" && !!shipResult.normalized);
-    const residential = shipResult.rdi === "Residential";
-    const apartmentNeeded = dpvCode === "S" || dpvCode === "D";
-    const addressNotFound = shipResult.notFound === true;
-    const billNotFound = billResult.notFound === true;
+    const usingUsps = !!(uspsShip || uspsBill);
 
-    // PO Box detection — regex on raw input
-    const shipPoBox = isPoBox(shipping.line1) || (shipping.line2 ? isPoBox(shipping.line2) : false);
-    const billPoBox = isPoBox(billing.line1) || (billing.line2 ? isPoBox(billing.line2) : false);
-    const poBox = shipPoBox || billPoBox;
+    // ── DPV / Deliverable ─────────────────────────────────────────────────
+    let dpvCode: "Y" | "N" | "S" | "D" | "U";
+    let deliverable: boolean;
+    let residential: boolean;
+    let apartmentNeeded: boolean;
+    let addressNotFound: boolean;
+    let billNotFound: boolean;
 
-    // CMRA — Smarty confirms this is a mail forwarding business (UPS Store, Mailboxes Etc.)
-    const shipCmra = shipResult.dpvCmra === "Y";
-    const billCmra = billResult.dpvCmra === "Y";
+    if (uspsShip) {
+      dpvCode = uspsShip.dpvCode;
+      deliverable = uspsShip.confirmed;
+      residential = !uspsShip.business;
+      apartmentNeeded = dpvCode === "S" || dpvCode === "D";
+      addressNotFound = dpvCode === "N";
+      billNotFound = uspsBill?.dpvCode === "N";
+    } else {
+      // Smarty fallback
+      dpvCode = (smartyShip.dpvMatchCode ?? "U") as "Y" | "N" | "S" | "D" | "U";
+      deliverable = dpvCode === "Y" || dpvCode === "S" || (dpvCode === "U" && !!smartyShip.normalized);
+      residential = smartyShip.rdi === "Residential";
+      apartmentNeeded = dpvCode === "S" || dpvCode === "D";
+      addressNotFound = smartyShip.notFound === true;
+      billNotFound = smartyBill.notFound === true;
+    }
+
+    // ── PO Box detection ──────────────────────────────────────────────────
+    // Regex catches "PO Box 123"; USPS carrier route catches disguised boxes
+    const shipPoBoxRegex = isPoBox(shipping.line1) || (shipping.line2 ? isPoBox(shipping.line2) : false);
+    const billPoBoxRegex = isPoBox(billing.line1) || (billing.line2 ? isPoBox(billing.line2) : false);
+    const shipPoBoxUsps = uspsShip?.poBox ?? false;
+    const billPoBoxUsps = uspsBill?.poBox ?? false;
+    const poBox = shipPoBoxRegex || billPoBoxRegex || shipPoBoxUsps || billPoBoxUsps;
+
+    // ── CMRA — mail forwarding agency ─────────────────────────────────────
+    const shipCmra = uspsShip?.cmra ?? smartyShip.dpvCmra === "Y";
+    const billCmra = uspsBill?.cmra ?? smartyBill.dpvCmra === "Y";
     const cmra = shipCmra || billCmra;
 
-    // Vacant — USPS confirmed no one lives or operates there
-    const vacant = shipResult.dpvVacant === "Y";
+    // ── Vacant ────────────────────────────────────────────────────────────
+    const vacant = uspsShip?.vacant ?? smartyShip.dpvVacant === "Y";
 
-    // Flag non-existent addresses — even with 3rd party delivery, the address must exist
-    if (addressNotFound) reasons.push("Shipping address does not exist — not found in address database");
-    if (billNotFound) reasons.push("Billing address does not exist — not found in address database");
+    // ── Normalize — prefer USPS output, fall back to Smarty ──────────────
+    const normalizedShip = uspsShip?.normalized ?? smartyShip.normalized;
+
+    // ── Reasons ───────────────────────────────────────────────────────────
+    if (addressNotFound) reasons.push("Shipping address does not exist — not found in USPS database");
+    if (billNotFound)    reasons.push("Billing address does not exist — not found in USPS database");
     if (!addressNotFound && apartmentNeeded) reasons.push("Apartment or unit number appears missing");
 
-    // PO Box / CMRA / Vacant flags
-    if (shipPoBox) reasons.push("Shipping address is a PO Box — cannot deliver carpet to a PO Box");
-    if (billPoBox) reasons.push("Billing address is a PO Box");
+    if (shipPoBoxRegex || shipPoBoxUsps) reasons.push("Shipping address is a PO Box — cannot deliver carpet to a PO Box");
+    if (billPoBoxRegex || billPoBoxUsps) reasons.push("Billing address is a PO Box");
     if (shipCmra) reasons.push("Shipping address is a commercial mail receiving agency (UPS Store / mailbox rental)");
     if (billCmra) reasons.push("Billing address is a commercial mail receiving agency — not a residence or business");
-    if (vacant) reasons.push("Shipping address is confirmed vacant by USPS");
+    if (vacant)   reasons.push("Shipping address is confirmed vacant by USPS");
+
+    logger.info("address check", { usingUsps, dpvCode, cmra, vacant, poBox });
 
     // Estimate distance using lat/lon if available
     let distanceKm: number | undefined;
@@ -212,7 +242,7 @@ export async function checkAddress(
       cmra,
       vacant,
       distanceKm,
-      normalized: shipResult.normalized ?? {
+      normalized: normalizedShip ?? {
         line1: shipping.line1.toUpperCase(),
         line2: shipping.line2?.toUpperCase(),
         city: shipping.city.toUpperCase(),
