@@ -141,7 +141,8 @@ export async function checkAddress(
     ]);
 
     const dpvCode = (shipResult.dpvMatchCode ?? "U") as "Y" | "N" | "S" | "D" | "U";
-    const deliverable = dpvCode === "Y" || dpvCode === "S";
+    // Deliverable: confirmed by DPV code, OR address normalized successfully (Smarty found it)
+    const deliverable = dpvCode === "Y" || dpvCode === "S" || (dpvCode === "U" && !!shipResult.normalized);
     const residential = shipResult.rdi === "Residential";
     const apartmentNeeded = dpvCode === "S" || dpvCode === "D";
     const addressNotFound = shipResult.notFound === true;
