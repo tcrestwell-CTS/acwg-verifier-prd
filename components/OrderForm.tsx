@@ -322,8 +322,8 @@ export function OrderForm({ onSubmit, isLoading }: OrderFormProps) {
                 ...(sd.pmId ? { stripePaymentMethodId: sd.pmId } : {}),
                 ...(sd.last4 ? { cardLast4: sd.last4 } : {}),
                 ...(sd.brand ? { brand: sd.brand } : {}),
-                ...(sd.avs ? { stripeAvs: sd.avs } : {}),
-                ...(sd.cvv ? { stripeCvv: sd.cvv } : {}),
+                stripeAvs: (sd.avs ?? "U") as "Y"|"N"|"P"|"U",
+                stripeCvv: (sd.cvv ?? "U") as "M"|"N"|"U",
               },
             };
             await onSubmit(payload as typeof data);
@@ -406,8 +406,8 @@ function StripeCardInner({ onToken, tokenizeRef, billingDetails }: {
 
     // Await AVS/CVV check before signalling done — ensures values
     // are in form state when verify fires immediately after
-    let avs: string | undefined;
-    let cvv: string | undefined;
+    let avs: string = "U";  // default — overwritten if Stripe returns real value
+    let cvv: string = "U";
     try {
       const res = await fetch("/api/stripe-verify", {
         method: "POST",
@@ -416,11 +416,16 @@ function StripeCardInner({ onToken, tokenizeRef, billingDetails }: {
       });
       if (res.ok) {
         const result = await res.json();
-        avs = result.avs;
-        cvv = result.cvv;
+        if (result.avs) avs = result.avs;
+        if (result.cvv) cvv = result.cvv;
+        // Log for debugging
+        console.log("[stripe-verify]", { avs, cvv, checks: result.checks, error: result.stripeError });
+      } else {
+        const errText = await res.text();
+        console.warn("[stripe-verify] non-ok response", res.status, errText.slice(0, 200));
       }
-    } catch {
-      // Non-fatal
+    } catch (e) {
+      console.warn("[stripe-verify] fetch failed", String(e));
     }
 
     // Now call onToken with all data including AVS/CVV
