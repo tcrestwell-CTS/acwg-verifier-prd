@@ -100,9 +100,11 @@ export function runRiskEngine(
     components.address += 35;
     reasons.push("Address does not exist in USPS database — likely fake or invalid");
     requiresOtp = true;
-  } else if (v.address.dpv === "U") {
-    components.address += 15;
-    reasons.push("Address could not be verified — may be invalid");
+  } else if (v.address.dpv === "U" && !v.address.normalized) {
+    // Only penalize U if the address also failed to normalize — U alone means
+    // Smarty couldn't confirm but the address may still be valid
+    components.address += 10;
+    reasons.push("Address could not be fully verified — manual confirmation recommended");
   } else if (v.address.apartmentNeeded) {
     components.address += 5;
     reasons.push("Apartment or unit number may be missing from address");
@@ -192,17 +194,22 @@ export function runRiskEngine(
 
   // ── Payment checks ──────────────────────────────────────────────────────
 
-  if (v.payment.avs === "N" || v.payment.avs === "U") {
+  if (v.payment.avs === "N") {
     components.payment += 25;
-    reasons.push(`AVS ${v.payment.avs === "N" ? "mismatch" : "unavailable"} — billing address not confirmed`);
+    reasons.push("AVS mismatch — billing address does not match card issuer records");
   } else if (v.payment.avs === "P") {
     components.payment += 10;
     reasons.push("AVS partial match — ZIP matched but street address did not");
+  } else if (v.payment.avs === "U") {
+    // Only penalize if card was actually entered — check for cardLast4
+    const cardEntered = !!(v.payment as { cardLast4?: string }).cardLast4;
+    if (cardEntered) {
+      components.payment += 5;
+      reasons.push("AVS unavailable — card issuer did not return address verification");
+    }
+    // No penalty if card was not entered at all
   }
-  if (v.payment.cvv === "U") {
-    components.payment += 5; // already hard-stopped if N
-    reasons.push("CVV unavailable");
-  }
+  // CVV U — no penalty, only penalize mismatch (N) which is already a hard stop
   if (v.payment.binType === "prepaid") {
     components.payment += 10;
     reasons.push("Card BIN indicates a prepaid card — higher chargeback risk");
