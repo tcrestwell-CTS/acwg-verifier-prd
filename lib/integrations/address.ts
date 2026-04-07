@@ -6,6 +6,9 @@ export interface AddressCheckResult {
   deliverable: boolean;
   apartmentNeeded?: boolean;
   residential: boolean;
+  poBox?: boolean;         // detected via regex on address line
+  cmra?: boolean;          // Commercial Mail Receiving Agency (UPS Store, etc.) — from Smarty
+  vacant?: boolean;        // USPS confirmed vacant address
   distanceKm?: number;
   normalized?: Address;
   reasons: string[];
@@ -38,6 +41,7 @@ async function callSmarty(address: Address): Promise<{
   components?: { zipCode?: string; plus4Code?: string };
   metadata?: { latitude?: number; longitude?: number };
   normalized?: Address;
+  dpvCmra?: string;
 } & { notFound?: boolean }> {
   const authId = process.env.SMARTY_AUTH_ID;
   const authToken = process.env.SMARTY_AUTH_TOKEN;
@@ -70,6 +74,7 @@ async function callSmarty(address: Address): Promise<{
     dpv_match_code?: string;
     dpv_vacant?: string;
     dpv_no_stat?: string;
+    dpv_cmra?: string;
     metadata?: { rdi?: string; latitude?: number; longitude?: number };
     components?: {
       primary_number?: string;
@@ -95,6 +100,7 @@ async function callSmarty(address: Address): Promise<{
     dpvMatchCode: result.dpv_match_code ?? "U",
     dpvVacant: result.dpv_vacant,
     dpvNoStat: result.dpv_no_stat,
+    dpvCmra: result.dpv_cmra,
     rdi: result.metadata?.rdi,
     metadata: result.metadata,
     normalized: c
@@ -109,6 +115,15 @@ async function callSmarty(address: Address): Promise<{
         }
       : undefined,
   };
+}
+
+
+// ── PO Box / CMRA detection ───────────────────────────────────────────────────
+
+const PO_BOX_REGEX = /\b(p\.?\s*o\.?\s*box|post\s+office\s+box|pob|po\s+box)\b/i;
+
+function isPoBox(line1: string): boolean {
+  return PO_BOX_REGEX.test(line1);
 }
 
 // ── Public adapter ────────────────────────────────────────────────────────────
@@ -132,10 +147,30 @@ export async function checkAddress(
     const addressNotFound = shipResult.notFound === true;
     const billNotFound = billResult.notFound === true;
 
+    // PO Box detection — regex on raw input
+    const shipPoBox = isPoBox(shipping.line1) || (shipping.line2 ? isPoBox(shipping.line2) : false);
+    const billPoBox = isPoBox(billing.line1) || (billing.line2 ? isPoBox(billing.line2) : false);
+    const poBox = shipPoBox || billPoBox;
+
+    // CMRA — Smarty confirms this is a mail forwarding business (UPS Store, Mailboxes Etc.)
+    const shipCmra = shipResult.dpvCmra === "Y";
+    const billCmra = billResult.dpvCmra === "Y";
+    const cmra = shipCmra || billCmra;
+
+    // Vacant — USPS confirmed no one lives or operates there
+    const vacant = shipResult.dpvVacant === "Y";
+
     // Flag non-existent addresses — even with 3rd party delivery, the address must exist
     if (addressNotFound) reasons.push("Shipping address does not exist — not found in address database");
     if (billNotFound) reasons.push("Billing address does not exist — not found in address database");
     if (!addressNotFound && apartmentNeeded) reasons.push("Apartment or unit number appears missing");
+
+    // PO Box / CMRA / Vacant flags
+    if (shipPoBox) reasons.push("Shipping address is a PO Box — cannot deliver carpet to a PO Box");
+    if (billPoBox) reasons.push("Billing address is a PO Box");
+    if (shipCmra) reasons.push("Shipping address is a commercial mail receiving agency (UPS Store / mailbox rental)");
+    if (billCmra) reasons.push("Billing address is a commercial mail receiving agency — not a residence or business");
+    if (vacant) reasons.push("Shipping address is confirmed vacant by USPS");
 
     // Estimate distance using lat/lon if available
     let distanceKm: number | undefined;
@@ -172,6 +207,9 @@ export async function checkAddress(
       deliverable,
       apartmentNeeded,
       residential,
+      poBox,
+      cmra,
+      vacant,
       distanceKm,
       normalized: shipResult.normalized ?? {
         line1: shipping.line1.toUpperCase(),
