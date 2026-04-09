@@ -127,6 +127,7 @@ model OtpAttempt {
   phone       String    // E.164, never log the code itself
   status      OtpStatus @default(pending)
   attempts    Int       @default(0)
+  codeHash    String?   // SHA-256 hash of the OTP code
   expiresAt   DateTime
   verifiedAt  DateTime?
   createdAt   DateTime  @default(now())
