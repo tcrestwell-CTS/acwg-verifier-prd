@@ -203,10 +203,10 @@ export async function checkAddress(
 
     logger.info("address check", { usingUsps, dpvCode, cmra, vacant, poBox });
 
-    // Estimate distance using lat/lon if available
+    // Estimate distance — use Smarty lat/lon if available (USPS doesn't return coordinates)
     let distanceKm: number | undefined;
-    const shipMeta = shipResult.metadata;
-    const billMeta = billResult.metadata;
+    const shipMeta = smartyShip.metadata;
+    const billMeta = smartyBill.metadata;
 
     if (
       shipMeta?.latitude && shipMeta?.longitude &&
