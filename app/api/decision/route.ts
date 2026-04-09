@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { orderId, status, reasons, notes, decidedBy, decidedAt } = parsed.data;
+  const { orderId, status, decisionType, reasons, notes, decidedBy, decidedAt } = parsed.data;
 
   // Verify order exists
   const order = await db.order.findUnique({ where: { id: orderId } });
