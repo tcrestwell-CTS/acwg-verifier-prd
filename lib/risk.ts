@@ -133,6 +133,29 @@ export function decisionBadgeClass(decision: string): string {
   }
 }
 
+export const APPROVAL_REASONS = [
+  "Address verified and deliverable",
+  "Identity confirmed via OTP",
+  "Identity confirmed via phone call",
+  "AVS full match — billing address confirmed",
+  "CVV verified",
+  "Returning customer — prior order history clean",
+  "Customer verbally confirmed billing address",
+  "Customer verbally confirmed card details",
+  "Photo ID reviewed and verified",
+  "Manager override — approved after review",
+  "Low risk score — all signals within threshold",
+];
+
+export const PHONE_OVERRIDE_REASONS = [
+  "Customer confirmed identity verbally",
+  "Customer confirmed billing address verbally",
+  "Customer confirmed card CVV verbally",
+  "Manager authorized phone approval",
+  "Customer is known/trusted — verified by rep",
+  "Discrepancy explained and resolved on call",
+];
+
 export const DENIAL_REASONS = [
   "Address undeliverable or does not exist",
   "Billing/shipping mismatch exceeds threshold",
