@@ -83,20 +83,32 @@ export async function checkPhone(rawPhone: string): Promise<PhoneCheckResult> {
     };
 
     const type = typeMap[lineType] ?? "mobile";
-    const isVoip = type === "voip";
+    const isVoip    = type === "voip";
     const isUnknown = lineType === "unknown";
     const reasons: string[] = [];
 
-    if (isVoip) reasons.push("Phone number is VoIP — harder to verify subscriber identity");
-    else if (isUnknown) reasons.push("Phone line type could not be determined — treat as unverified");
-    else reasons.push(`Active ${type} number${carrier ? ` (${carrier})` : ""}`);
+    // Detect foreign carrier — Twilio cannot confirm active status for non-US carriers
+    // This is "unverified" not "inactive" — don't penalise heavily
+    const isForeignCarrier = !!(carrier && !/AT&T|Verizon|T-Mobile|Sprint|US Cellular|Cricket|Boost|Metro|Tracfone|Google|Comcast|Charter|CenturyLink|Lumen|Frontier|Windstream|Consolidated|TeleCove|NTELOS|Cavalier/i.test(carrier));
+
+    if (isVoip) {
+      reasons.push("Phone number is VoIP — harder to verify subscriber identity");
+    } else if (isForeignCarrier) {
+      reasons.push(`Phone registered to foreign carrier (${carrier}) — status cannot be confirmed by US carrier lookup`);
+    } else if (isUnknown) {
+      reasons.push("Phone line type could not be determined — treat as unverified");
+    } else {
+      reasons.push(`Active ${type} number${carrier ? ` (${carrier})` : ""}`);
+    }
 
     return {
       e164,
       carrier,
       type,
-      active: !isVoip && !isUnknown,
-      riskScore: isVoip ? 60 : isUnknown ? 50 : 10,
+      // Only mark inactive if Twilio explicitly can't find the number (404 = riskScore 90)
+      // Unknown carrier or foreign carrier = unverified, not inactive
+      active: !isVoip && !isUnknown && !isForeignCarrier,
+      riskScore: isVoip ? 60 : isForeignCarrier ? 35 : isUnknown ? 40 : 10,
       reasons,
     };
   } catch (err) {
