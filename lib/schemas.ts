@@ -152,6 +152,7 @@ export interface ClaudeSummaryResponse {
 
 export const DecisionFormSchema = z.object({
   status: z.enum(["approved", "queued", "denied"]),
+  decisionType: z.enum(["manual", "phone_override", "automated"]).default("manual"),
   reasons: z.array(z.string()).min(1, "Select at least one reason"),
   notes: z.string().optional(),
   decidedBy: z.string().min(1, "Enter your name"),
