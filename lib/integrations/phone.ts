@@ -87,9 +87,10 @@ export async function checkPhone(rawPhone: string): Promise<PhoneCheckResult> {
     const isUnknown = lineType === "unknown";
     const reasons: string[] = [];
 
-    // Detect foreign carrier — Twilio cannot confirm active status for non-US carriers
-    // This is "unverified" not "inactive" — don't penalise heavily
-    const isForeignCarrier = !!(carrier && !/AT&T|Verizon|T-Mobile|Sprint|US Cellular|Cricket|Boost|Metro|Tracfone|Google|Comcast|Charter|CenturyLink|Lumen|Frontier|Windstream|Consolidated|TeleCove|NTELOS|Cavalier/i.test(carrier));
+    // Detect foreign carrier using E.164 country code — +1 = NANP (US, Canada, Caribbean)
+    // Any +1 number is domestic North America regardless of carrier name
+    const isNanp = e164.startsWith("+1");
+    const isForeignCarrier = !isNanp && !!carrier;
 
     if (isVoip) {
       reasons.push("Phone number is VoIP — harder to verify subscriber identity");
@@ -105,8 +106,6 @@ export async function checkPhone(rawPhone: string): Promise<PhoneCheckResult> {
       e164,
       carrier,
       type,
-      // Only mark inactive if Twilio explicitly can't find the number (404 = riskScore 90)
-      // Unknown carrier or foreign carrier = unverified, not inactive
       active: !isVoip && !isUnknown && !isForeignCarrier,
       riskScore: isVoip ? 60 : isForeignCarrier ? 35 : isUnknown ? 40 : 10,
       reasons,
