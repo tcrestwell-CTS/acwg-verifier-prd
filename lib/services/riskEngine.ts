@@ -133,12 +133,17 @@ export function runRiskEngine(
     requiresDocVerification = dist > 100;
   }
   if (v.phone.active === false) {
-    // Check if it's a non-existent number (high risk score) vs just inactive
     if (v.phone.riskScore !== undefined && v.phone.riskScore >= 80) {
+      // Non-existent number — hard flag
       components.phone += 30;
       reasons.push("Phone number does not exist in carrier database — likely fake");
       requiresOtp = true;
+    } else if (v.phone.riskScore !== undefined && v.phone.riskScore >= 30 && v.phone.riskScore < 80) {
+      // Foreign/unverifiable carrier — soft flag, don't OTP
+      components.phone += 8;
+      reasons.push("Phone carrier status unverifiable — non-US or foreign carrier registered number");
     } else {
+      // US carrier confirmed inactive
       components.phone += 15;
       reasons.push("Phone number appears inactive or disconnected");
     }
