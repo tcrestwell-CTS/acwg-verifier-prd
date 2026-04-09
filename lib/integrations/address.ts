@@ -242,7 +242,7 @@ export async function checkAddress(
       cmra,
       vacant,
       distanceKm,
-      normalized: normalizedShip ?? {
+      normalized: normalizedShip ? { ...normalizedShip, country: "US" } : {
         line1: shipping.line1.toUpperCase(),
         line2: shipping.line2?.toUpperCase(),
         city: shipping.city.toUpperCase(),
