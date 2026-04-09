@@ -8,6 +8,7 @@ import { decisionLimiter } from "@/lib/middleware/rateLimit";
 const DecisionInputSchema = z.object({
   orderId: z.string().min(1),
   status: z.enum(["approved", "queued", "denied"]),
+  decisionType: z.enum(["manual", "phone_override", "automated"]).default("manual"),
   reasons: z.array(z.string()).min(1, "At least one reason required"),
   notes: z.string().optional(),
   decidedBy: z.string().min(1),
