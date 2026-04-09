@@ -1,9 +1,14 @@
+import { createHash } from "crypto";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { writeAuditLog } from "@/lib/audit";
 import { flags } from "@/lib/featureFlags";
 
 const OTP_EXPIRY_MINUTES = 10;
+
+function hashCode(code: string): string {
+  return createHash("sha256").update(code).digest("hex");
+}
 const MAX_ATTEMPTS = 3;
 const COOLDOWN_MINUTES = 5;
 
@@ -70,15 +75,15 @@ export async function initiateOtp(orderId: string, phone: string, actor: string)
   const code = generateCode();
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
-  // Never persist the code — only store metadata
+  const codeHash = hashCode(code);
+
   const attempt = await db.otpAttempt.create({
     data: {
       orderId,
       phone,
-      status: "pending",
+      status:   "pending",
       expiresAt,
-      // Store hash of code for verification, not plaintext
-      // In production: use bcrypt. For now: simple check via memory (stateless pattern)
+      codeHash,
     },
   });
 
@@ -122,8 +127,9 @@ export async function verifyOtp(attemptId: string, code: string, actor: string) 
     throw new Error("Too many failed attempts");
   }
 
-  // In a real system, compare against a stored hash. For the stub, we accept any 6-digit code.
-  const isValid = /^\d{6}$/.test(code);
+  // Compare submitted code against stored hash
+  const isValid = !!(attempt as { codeHash?: string | null }).codeHash &&
+    hashCode(code) === (attempt as { codeHash?: string | null }).codeHash;
 
   await db.otpAttempt.update({
     where: { id: attemptId },
