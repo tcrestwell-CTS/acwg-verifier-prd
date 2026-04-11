@@ -10,6 +10,7 @@ import { ClaudeSummary } from "@/components/ClaudeSummary";
 import { RepPlaybook } from "@/components/RepPlaybook";
 import { OtpPanel } from "@/components/OtpPanel";
 import { StripeCardPanel } from "@/components/StripeCardPanel";
+import { ManagerEscalationPanel } from "@/components/ManagerEscalationPanel";
 import { VerifyingOverlay } from "@/components/VerifyingOverlay";
 import { IdentityPanel } from "@/components/panels/IdentityPanel";
 import { DevicePanel } from "@/components/panels/DevicePanel";
@@ -134,6 +135,15 @@ export default function NewOrderPage() {
                   orderId={orderId}
                   phone={currentOrder?.contact?.phone ?? ""}
                   required={!!(verification.overall as { requiresOtp?: boolean }).requiresOtp}
+                />
+              )}
+              {orderId && !!(verification.overall as { requiresManagerEscalation?: boolean }).requiresManagerEscalation && (
+                <ManagerEscalationPanel
+                  orderId={orderId}
+                  score={(verification.overall as { score?: number }).score ?? 0}
+                  reasons={(verification.overall as { reasons?: string[] }).reasons ?? []}
+                  customerName={`${currentOrder?.customer?.firstName ?? ""} ${currentOrder?.customer?.lastName ?? ""}`.trim()}
+                  orderAmount={currentOrder?.items?.reduce((s: number, i: { qty: number; price: number }) => s + i.qty * i.price, 0) ?? 0}
                 />
               )}
 
