@@ -8,6 +8,7 @@ export interface RiskResult {
   decision: "approved" | "queued" | "denied";
   reasons: string[];
   hardStop: boolean;          // hard stops bypass scoring thresholds
+  requiresManagerEscalation: boolean;  // score 26-39 — needs manager sign-off
   hardStopReason?: string;
   requiresOtp: boolean;       // step-up requirements
   requiresDocVerification: boolean;
@@ -276,6 +277,30 @@ export function runRiskEngine(
 
   const score = Math.min(100, Math.max(0, rawScore));
 
+  // ── Escalation tiers ────────────────────────────────────────────────────
+  // 40-59: queued + OTP required
+  // 26-39: queued + OTP required + manager escalation
+  const MANAGER_ESCALATION_THRESHOLD = 39;
+  const OTP_SCORE_THRESHOLD = 40;
+
+  // Score-based OTP — any queued order at 40+ requires OTP
+  if (!hardStop && score >= OTP_SCORE_THRESHOLD && score <= thresholds.queued) {
+    requiresOtp = true;
+    if (!reasons.some(r => r.includes("OTP"))) {
+      reasons.push(`Order score ${score}/100 — OTP verification required before processing`);
+    }
+  }
+
+  // Manager escalation — score 26-39 (borderline, needs human sign-off)
+  const requiresManagerEscalation = !hardStop &&
+    score > thresholds.approved &&
+    score <= MANAGER_ESCALATION_THRESHOLD;
+
+  if (requiresManagerEscalation) {
+    requiresOtp = true;
+    reasons.push("Score in manager escalation zone — sales manager approval required");
+  }
+
   let decision: "approved" | "queued" | "denied";
   if (hardStop) {
     decision = "denied";
@@ -295,6 +320,7 @@ export function runRiskEngine(
     hardStopReason,
     requiresOtp,
     requiresDocVerification,
+    requiresManagerEscalation,
     components,
   };
 }
