@@ -33,35 +33,32 @@ export async function POST(req: NextRequest) {
     // Send email notification if configured
     const managerEmail = process.env.MANAGER_EMAIL;
     if (managerEmail) {
-      const sgKey = process.env.SENDGRID_API_KEY;
-      if (sgKey) {
-        await fetch("https://api.sendgrid.com/v3/mail/send", {
+      const resendKey = process.env.RESEND_API_KEY;
+      if (resendKey) {
+        await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${sgKey}`,
+            Authorization: `Bearer ${resendKey}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            personalizations: [{ to: [{ email: managerEmail }] }],
-            from: { email: "noreply@acwgverifier.com", name: "ACWG Fraud Portal" },
+            from:    "ACWG Fraud Portal <noreply@acwg-verifier-prd.vercel.app>",
+            to:      [managerEmail],
             subject: `🔔 Manager Review Required — ${customerName} (Score: ${score}/100)`,
-            content: [{
-              type: "text/html",
-              value: `
-                <h2>Manager Approval Required</h2>
-                <p>An order requires your review before it can be processed.</p>
-                <table style="border-collapse:collapse;width:100%">
-                  <tr><td style="padding:8px;border:1px solid #ddd"><strong>Customer</strong></td><td style="padding:8px;border:1px solid #ddd">${customerName}</td></tr>
-                  <tr><td style="padding:8px;border:1px solid #ddd"><strong>Order Amount</strong></td><td style="padding:8px;border:1px solid #ddd">$${Number(orderAmount).toLocaleString()}</td></tr>
-                  <tr><td style="padding:8px;border:1px solid #ddd"><strong>Risk Score</strong></td><td style="padding:8px;border:1px solid #ddd">${score}/100</td></tr>
-                  <tr><td style="padding:8px;border:1px solid #ddd"><strong>Risk Signals</strong></td><td style="padding:8px;border:1px solid #ddd">${reasons.slice(0,5).join('<br>')}</td></tr>
-                  <tr><td style="padding:8px;border:1px solid #ddd"><strong>Override Code</strong></td><td style="padding:8px;border:1px solid #ddd;font-size:24px;font-weight:bold;letter-spacing:4px">${code}</td></tr>
-                </table>
-                <p style="margin-top:16px">Provide the override code to the rep to allow processing, or review directly in the <a href="${process.env.NEXT_PUBLIC_APP_URL ?? 'https://acwg-verifier-prd.vercel.app'}/orders/queue">Review Queue</a>.</p>
-              `,
-            }],
+            html: `
+              <h2 style="color:#1e3a8a">Manager Approval Required</h2>
+              <p>An order requires your review before it can be processed.</p>
+              <table style="border-collapse:collapse;width:100%;max-width:500px">
+                <tr><td style="padding:8px;border:1px solid #ddd"><strong>Customer</strong></td><td style="padding:8px;border:1px solid #ddd">${customerName}</td></tr>
+                <tr><td style="padding:8px;border:1px solid #ddd"><strong>Order Amount</strong></td><td style="padding:8px;border:1px solid #ddd">$${Number(orderAmount).toLocaleString()}</td></tr>
+                <tr><td style="padding:8px;border:1px solid #ddd"><strong>Risk Score</strong></td><td style="padding:8px;border:1px solid #ddd;color:#b91c1c;font-weight:bold">${score}/100</td></tr>
+                <tr><td style="padding:8px;border:1px solid #ddd"><strong>Risk Signals</strong></td><td style="padding:8px;border:1px solid #ddd">${reasons.slice(0,5).join('<br>')}</td></tr>
+                <tr style="background:#fef9c3"><td style="padding:8px;border:1px solid #ddd"><strong>Override Code</strong></td><td style="padding:12px;border:1px solid #ddd;font-size:28px;font-weight:bold;letter-spacing:6px;font-family:monospace">${code}</td></tr>
+              </table>
+              <p style="margin-top:16px">Share the override code with the rep to allow processing, or review directly in the <a href="${process.env.NEXT_PUBLIC_APP_URL ?? 'https://acwg-verifier-prd.vercel.app'}/orders/queue">Review Queue</a>.</p>
+            `,
           }),
-        });
+        }).catch(e => logger.warn("Resend email failed", { error: String(e) }));
       }
 
       // Also try Twilio SMS to manager if phone is set
